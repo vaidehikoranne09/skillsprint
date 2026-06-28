@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SkillsPrint - Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+    <div class="container dashboard-container">
+        <!-- Navigation Bar -->
+        <nav class="navbar">
+            <div class="nav-brand">🚀 SkillsPrint</div>
+            <div class="nav-user">
+                <span id="userNameDisplay">User</span>
+                <button id="logoutBtn" class="btn btn-danger btn-small">Logout</button>
+            </div>
+        </nav>
+
+        <!-- Dashboard Content -->
+        <div class="dashboard-content">
+            <div class="welcome-card">
+                <h1>👋 Hello, <span id="welcomeName">User</span>!</h1>
+                <p class="welcome-message">Welcome to SkillsPrint - Your Placement Preparation Platform</p>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">📚</div>
+                    <div class="stat-info">
+                        <h3>0</h3>
+                        <p>Courses Enrolled</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-info">
+                        <h3>0</h3>
+                        <p>Completed Quizzes</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🏆</div>
+                    <div class="stat-info">
+                        <h3>0</h3>
+                        <p>Achievements</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⏱️</div>
+                    <div class="stat-info">
+                        <h3>0</h3>
+                        <p>Hours Spent</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="profile-card">
+                <h3>👤 Your Profile</h3>
+                <div class="profile-info">
+                    <p><strong>Name:</strong> <span id="profileName"></span></p>
+                    <p><strong>Email:</strong> <span id="profileEmail"></span></p>
+                    <p><strong>Status:</strong> <span id="profileStatus" class="badge badge-success">Active</span></p>
+                    <p><strong>Member Since:</strong> <span id="profileJoined"></span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
