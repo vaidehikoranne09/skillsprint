@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  skillsprint:
+    build: .
+    container_name: skillsprint-backend
+
+    ports:
+      - "8000:8000"
+
+    env_file:
+      - .env
+
+    volumes:
+      - .:/app
+
+    restart: unless-stopped
