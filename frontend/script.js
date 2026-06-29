@@ -1,8 +1,8 @@
-// Configuration
-// frontend/script.js - Replace the API_URL line
 // frontend/script.js
-const API_URL = 'https://skillsprint-api.onrender.com';  // Your actual Render URL
-// The rest of your script stays the same...
+// Configuration - Automatically detect environment
+const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:8000'
+    : 'https://skillsprint-api-97qw.onrender.com';  // Replace with your Render URL
 
 // ========== LOGIN PAGE ==========
 const loginForm = document.getElementById('loginForm');
@@ -30,6 +30,7 @@ if (loginForm) {
 
                 showMessage(messageDiv, `✅ Welcome ${data.user.name}! Redirecting...`, 'success');
 
+                // FIX: Use window.location.href with proper path
                 setTimeout(() => {
                     window.location.href = '/dashboard';
                 }, 1000);
@@ -71,6 +72,7 @@ if (signupForm) {
             if (response.ok) {
                 showMessage(messageDiv, '✅ Signup successful! Redirecting to login...', 'success');
 
+                // FIX: Redirect to login page
                 setTimeout(() => {
                     window.location.href = '/';
                 }, 1000);
@@ -84,8 +86,7 @@ if (signupForm) {
 }
 
 // ========== DASHBOARD PAGE ==========
-// Check if we're on dashboard page
-if (window.location.pathname === '/dashboard' || window.location.pathname === '/dashboard.html') {
+if (window.location.pathname === '/dashboard') {
     // Check if user is logged in
     const token = localStorage.getItem('access_token');
     const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -125,7 +126,6 @@ if (window.location.pathname === '/dashboard' || window.location.pathname === '/
                 document.getElementById('profileName').textContent = userData.name;
                 document.getElementById('profileEmail').textContent = userData.email;
             } else if (response.status === 401) {
-                // Token expired
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('user');
                 window.location.href = '/';
@@ -160,12 +160,9 @@ if (window.location.pathname === '/dashboard' || window.location.pathname === '/
 }
 
 // ========== REDIRECT IF ALREADY LOGGED IN ==========
-// Check on login and signup pages
-const currentPath = window.location.pathname;
-if (currentPath === '/' || currentPath === '/signup') {
+if (window.location.pathname === '/' || window.location.pathname === '/signup') {
     const token = localStorage.getItem('access_token');
     if (token) {
-        // If already logged in, redirect to dashboard
         window.location.href = '/dashboard';
     }
 }
