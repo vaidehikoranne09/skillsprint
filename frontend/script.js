@@ -1,5 +1,8 @@
 // Configuration
-const API_URL = 'http://localhost:8000';
+// frontend/script.js - Replace the API_URL line
+// frontend/script.js
+const API_URL = 'https://skillsprint-api.onrender.com';  // Your actual Render URL
+// The rest of your script stays the same...
 
 // ========== LOGIN PAGE ==========
 const loginForm = document.getElementById('loginForm');
