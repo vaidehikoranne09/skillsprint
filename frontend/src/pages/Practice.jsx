@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { usePracticeQuestions } from '../hooks/useData';
+import dataService from '../services/dataService';
+import { questionApi } from '../services/api';
 import QuestionCard from '../components/practice/QuestionCard';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -8,12 +9,13 @@ import ProgressBar from '../components/ui/ProgressBar';
 import Badge from '../components/ui/Badge';
 
 const Practice = () => {
-  const { topicId } = useParams();
+  const { topicId, subtopicId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const difficulty = searchParams.get('difficulty') || 'mixed';
   
-  const { data, loading } = usePracticeQuestions(topicId, difficulty);
+  const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
   const [bookmarks, setBookmarks] = useState([]);
@@ -21,7 +23,144 @@ const Practice = () => {
   const [showExplanation, setShowExplanation] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [hasAnsweredCurrent, setHasAnsweredCurrent] = useState(false);
+  const [topicName, setTopicName] = useState('');
+  const [error, setError] = useState(null);
 
+  useEffect(() => {
+    const loadQuestions = async () => {
+      try {
+        console.log('🔍 Practice Page - topicId:', topicId);
+        console.log('🔍 Practice Page - subtopicId:', subtopicId);
+        console.log('🔍 Practice Page - difficulty:', difficulty);
+        
+        // First, get all structured data to find subject and topic names
+        const structuredData = await dataService.loadAllData();
+        console.log('📊 Structured data loaded:', structuredData);
+        
+        let foundSubject = null;
+        let foundTopic = null;
+        
+        // Find the topic and subject
+        for (const subject of structuredData.subjects) {
+          for (const topic of subject.topics || []) {
+            if (String(topic.id) === String(topicId)) {
+              foundSubject = subject;
+              foundTopic = topic;
+              console.log('✅ Found topic:', foundTopic.name, 'in subject:', foundSubject.name);
+              break;
+            }
+          }
+          if (foundTopic) break;
+        }
+        
+        if (!foundSubject || !foundTopic) {
+          console.error('❌ Topic not found for ID:', topicId);
+          setError('Topic not found');
+          setLoading(false);
+          return;
+        }
+        
+        setTopicName(foundTopic.name);
+        
+        // Try to get questions from the API
+        let questionsData = [];
+        
+        try {
+          // If we have a subtopic, use it
+          let subtopicName = null;
+          if (subtopicId) {
+            const subtopic = foundTopic.subtopics?.find(st => String(st.id) === String(subtopicId));
+            if (subtopic) {
+              subtopicName = subtopic.name;
+              console.log('📌 Using subtopic:', subtopicName);
+            }
+          }
+          
+          // Fetch questions from API
+          const response = await questionApi.getPracticeQuestions({
+            subject: foundSubject.name,
+            topic: foundTopic.name,
+            subtopic: subtopicName,
+            difficulty: difficulty === 'mixed' ? null : difficulty,
+            limit: 50
+          });
+          
+          console.log('📝 API Response:', response.data);
+          questionsData = response.data.questions || [];
+          
+          // If no questions from API, try to get from structured data
+          if (questionsData.length === 0) {
+            console.log('⚠️ No questions from API, trying structured data...');
+            
+            // Get questions from the subtopic
+            if (subtopicId) {
+              const subtopic = foundTopic.subtopics?.find(st => String(st.id) === String(subtopicId));
+              if (subtopic && subtopic.questions) {
+                questionsData = subtopic.questions;
+              }
+            } else {
+              // Get questions from all subtopics
+              for (const st of foundTopic.subtopics || []) {
+                if (st.questions) {
+                  questionsData = [...questionsData, ...st.questions];
+                }
+              }
+            }
+          }
+        } catch (apiError) {
+          console.error('API error, using fallback data:', apiError);
+          // Fallback: use questions from structured data
+          if (subtopicId) {
+            const subtopic = foundTopic.subtopics?.find(st => String(st.id) === String(subtopicId));
+            if (subtopic && subtopic.questions) {
+              questionsData = subtopic.questions;
+            }
+          } else {
+            for (const st of foundTopic.subtopics || []) {
+              if (st.questions) {
+                questionsData = [...questionsData, ...st.questions];
+              }
+            }
+          }
+        }
+        
+        console.log('📝 Total questions loaded:', questionsData.length);
+        
+        // Filter by difficulty if not mixed
+        if (difficulty && difficulty !== 'mixed') {
+          questionsData = questionsData.filter(q => 
+            q.difficulty?.toLowerCase() === difficulty.toLowerCase()
+          );
+          console.log('📝 After difficulty filter:', questionsData.length);
+        }
+        
+        // Format questions for display
+        const formattedQuestions = questionsData.map((q, index) => ({
+          id: q.id || q.question_id || index + 1,
+          question: q.question || '',
+          options: q.options || [q.option_a, q.option_b, q.option_c, q.option_d] || ['', '', '', ''],
+          correctAnswer: q.correct_option !== undefined ? q.correct_option : 0,
+          explanation: q.explanation || '',
+          formula: q.formula || '',
+          shortcut: q.shortcut || '',
+          wrongReason: q.wrongReason || 'Review the explanation above to understand the correct approach.',
+          difficulty: q.difficulty || 'Medium'
+        }));
+        
+        setQuestions(formattedQuestions);
+        setLoading(false);
+        
+      } catch (error) {
+        console.error('Error loading questions:', error);
+        setError(error.message || 'Failed to load questions');
+        setLoading(false);
+      }
+    };
+
+    loadQuestions();
+  }, [topicId, subtopicId, difficulty]);
+
+  // Timer effect
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
@@ -47,10 +186,22 @@ const Practice = () => {
     );
   }
 
-  if (!data || !data.questions || data.questions.length === 0) {
+  if (error) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500">No questions available</p>
+        <p className="text-red-500">{error}</p>
+        <Button onClick={() => navigate(-1)} className="mt-4">
+          Go Back
+        </Button>
+      </div>
+    );
+  }
+
+  if (!questions || questions.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-500">No questions available for this topic</p>
+        <p className="text-sm text-gray-400 mt-2">Topic: {topicName || 'Unknown'}</p>
         <Button onClick={() => navigate('/dashboard')} className="mt-4">
           Back to Dashboard
         </Button>
@@ -58,7 +209,6 @@ const Practice = () => {
     );
   }
 
-  const questions = data.questions;
   const totalQuestions = questions.length;
   const currentQ = questions[currentQuestion];
 
@@ -79,11 +229,9 @@ const Practice = () => {
     setAnswers({ ...answers, [questionId]: optionIndex });
     setHasAnsweredCurrent(true);
     
-    // If wrong, automatically show explanation
     if (!isCorrect) {
       setShowExplanation(true);
     } else {
-      // If correct, hide explanation (user can still click "Show Explanation")
       setShowExplanation(false);
     }
   };
@@ -97,24 +245,20 @@ const Practice = () => {
   };
 
   const handleNext = () => {
-    // If we haven't answered the current question, don't proceed
     if (!hasAnsweredCurrent && !isSubmitted) {
       alert('Please answer the question before proceeding.');
       return;
     }
 
-    // Check if the answer is wrong and we're not showing explanation
     const currentQ = questions[currentQuestion];
     const selectedAnswer = answers[currentQ.id];
     const isWrong = selectedAnswer !== undefined && selectedAnswer !== currentQ.correctAnswer;
 
     if (isWrong && !showExplanation) {
-      // If wrong and explanation not shown, show it first
       setShowExplanation(true);
       return;
     }
 
-    // Proceed to next question
     if (currentQuestion < totalQuestions - 1) {
       setCurrentQuestion(currentQuestion + 1);
       setShowExplanation(false);
@@ -126,14 +270,12 @@ const Practice = () => {
     if (currentQuestion > 0) {
       setCurrentQuestion(currentQuestion - 1);
       setShowExplanation(false);
-      // Check if the previous question was answered
       const prevQ = questions[currentQuestion - 1];
       setHasAnsweredCurrent(answers[prevQ.id] !== undefined);
     }
   };
 
   const handleSubmit = () => {
-    // Check if all questions are answered
     const unanswered = questions.filter(q => answers[q.id] === undefined);
     if (unanswered.length > 0) {
       const confirmSubmit = window.confirm(
@@ -161,10 +303,9 @@ const Practice = () => {
   };
 
   const progress = ((currentQuestion + 1) / totalQuestions) * 100;
-
-  // Check if current question is answered
-  const isCurrentAnswered = answers[currentQ.id] !== undefined;
-  const isCurrentCorrect = isCurrentAnswered && answers[currentQ.id] === currentQ.correctAnswer;
+  const currentQId = currentQ.id;
+  const isCurrentAnswered = answers[currentQId] !== undefined;
+  const isCurrentCorrect = isCurrentAnswered && answers[currentQId] === currentQ.correctAnswer;
   const isCurrentWrong = isCurrentAnswered && !isCurrentCorrect;
 
   return (
@@ -172,7 +313,7 @@ const Practice = () => {
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">{data.topicName}</h2>
+          <h2 className="text-xl font-bold text-gray-900">{topicName || 'Practice'}</h2>
           <p className="text-sm text-gray-500">{difficulty.charAt(0).toUpperCase() + difficulty.slice(1)} • {totalQuestions} Questions</p>
         </div>
         <div className="flex items-center gap-4">
@@ -199,10 +340,10 @@ const Practice = () => {
         question={currentQ}
         index={currentQuestion}
         total={totalQuestions}
-        selectedOption={answers[currentQ.id]}
+        selectedOption={answers[currentQId]}
         onSelectOption={handleSelectOption}
         onBookmark={handleBookmark}
-        isBookmarked={bookmarks.includes(currentQ.id)}
+        isBookmarked={bookmarks.includes(currentQId)}
         showExplanation={showExplanation}
         isSubmitted={isSubmitted}
       />

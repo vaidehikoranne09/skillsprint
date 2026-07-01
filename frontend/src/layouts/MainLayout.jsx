@@ -11,13 +11,20 @@ const MainLayout = () => {
   const navItems = [
     { path: '/dashboard', icon: 'fa-chart-pie', label: 'Dashboard' },
     { path: '/subjects', icon: 'fa-book', label: 'Subjects' },
-    { path: '/practice', icon: 'fa-pencil-alt', label: 'Practice' },
     { path: '/profile', icon: 'fa-user', label: 'Profile' },
   ];
 
   const handleLogout = async () => {
     await logout();
     navigate('/login');
+  };
+
+  // Check if path is active
+  const isActive = (path) => {
+    if (path === '/subjects') {
+      return location.pathname.startsWith('/subject') || location.pathname === '/subjects';
+    }
+    return location.pathname === path;
   };
 
   return (
@@ -50,14 +57,14 @@ const MainLayout = () => {
                 className={`
                   flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600
                   transition-all duration-200 group
-                  ${location.pathname === item.path 
+                  ${isActive(item.path) 
                     ? 'bg-gradient-to-r from-primary-50 to-purple-50 text-primary-600 font-semibold shadow-sm' 
                     : 'hover:bg-gray-50 hover:text-primary-600'}
                 `}
               >
-                <i className={`fas ${item.icon} w-5 text-center transition-colors ${location.pathname === item.path ? 'text-primary-600' : 'text-gray-400 group-hover:text-primary-600'}`} />
+                <i className={`fas ${item.icon} w-5 text-center transition-colors ${isActive(item.path) ? 'text-primary-600' : 'text-gray-400 group-hover:text-primary-600'}`} />
                 <span>{item.label}</span>
-                {location.pathname === item.path && (
+                {isActive(item.path) && (
                   <span className="ml-auto w-1.5 h-8 bg-gradient-to-b from-primary-600 to-purple-600 rounded-full" />
                 )}
               </Link>
@@ -103,16 +110,13 @@ const MainLayout = () => {
                 <i className={`fas ${isSidebarOpen ? 'fa-times' : 'fa-bars'}`} />
               </button>
               <h1 className="text-xl font-semibold text-gray-900 hidden lg:block">
-                {navItems.find(item => item.path === location.pathname)?.label || 'Dashboard'}
+                {navItems.find(item => isActive(item.path))?.label || 'Dashboard'}
               </h1>
             </div>
             <div className="flex items-center gap-3">
               <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors hover:bg-gray-100 rounded-xl relative">
                 <i className="fas fa-bell text-xl" />
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-              </button>
-              <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors hover:bg-gray-100 rounded-xl">
-                <i className="fas fa-cog text-xl" />
               </button>
             </div>
           </div>

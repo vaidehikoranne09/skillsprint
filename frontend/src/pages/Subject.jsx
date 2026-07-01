@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useSubjectData } from '../hooks/useData';
 import TopicCard from '../components/cards/TopicCard';
 import Card from '../components/ui/Card';
@@ -7,12 +7,17 @@ import Input from '../components/ui/Input';
 import SectionTitle from '../components/ui/SectionTitle';
 import ProgressBar from '../components/ui/ProgressBar';
 import Badge from '../components/ui/Badge';
+import Button from '../components/ui/Button';
 
 const Subject = () => {
   const { subjectId } = useParams();
+  const navigate = useNavigate();
   const { data, loading } = useSubjectData(subjectId);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all');
+
+  console.log('🔍 Subject Page - subjectId:', subjectId);
+  console.log('📊 Subject Data:', data);
 
   if (loading) {
     return (
@@ -25,13 +30,22 @@ const Subject = () => {
     );
   }
 
-  if (!data) return null;
+  if (!data) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-500">Subject not found</p>
+        <Button onClick={() => navigate('/dashboard')} className="mt-4">
+          Back to Dashboard
+        </Button>
+      </div>
+    );
+  }
 
-  const filteredTopics = data.topics.filter(topic => {
-    const matchesSearch = topic.name.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredTopics = data.topics?.filter(topic => {
+    const matchesSearch = topic.name?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filter === 'all' || topic.difficulty === filter;
     return matchesSearch && matchesFilter;
-  });
+  }) || [];
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -47,12 +61,12 @@ const Subject = () => {
           <h1 className="text-3xl font-bold text-gray-900">{data.name}</h1>
           <p className="text-gray-500 mt-1">{data.description}</p>
           <div className="flex items-center gap-4 mt-3">
-            <Badge variant="info">{data.totalTopics} Topics</Badge>
-            <Badge variant="success">{data.completedTopics} Completed</Badge>
-            <span className="text-sm text-gray-500">{Math.round(data.progress)}% Complete</span>
+            <Badge variant="info">{data.totalTopics || 0} Topics</Badge>
+            <Badge variant="success">{data.completedTopics || 0} Completed</Badge>
+            <span className="text-sm text-gray-500">{Math.round(data.progress || 0)}% Complete</span>
           </div>
           <div className="mt-3 w-full md:w-96">
-            <ProgressBar progress={data.progress} showLabel label="Overall Progress" />
+            <ProgressBar progress={data.progress || 0} showLabel label="Overall Progress" />
           </div>
         </div>
       </div>
@@ -97,9 +111,20 @@ const Subject = () => {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredTopics.map((topic) => (
-              <TopicCard key={topic.id} topic={topic} subjectId={data.id} />
-            ))}
+            {filteredTopics.map((topic) => {
+              // Ensure each topic has an ID
+              const topicWithId = {
+                ...topic,
+                id: topic.id || topic.name // Fallback to name if no ID
+              };
+              return (
+                <TopicCard 
+                  key={topicWithId.id} 
+                  topic={topicWithId} 
+                  subjectId={data.id}
+                />
+              );
+            })}
           </div>
         )}
       </div>
