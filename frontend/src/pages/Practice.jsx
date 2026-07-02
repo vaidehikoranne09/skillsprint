@@ -9,10 +9,11 @@ import ProgressBar from '../components/ui/ProgressBar';
 import Badge from '../components/ui/Badge';
 
 const Practice = () => {
-  const { topicId, subtopicId } = useParams();
+  const { topicId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const difficulty = searchParams.get('difficulty') || 'mixed';
+  
+  const subjectFromQuery = searchParams.get('subject');
   
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,141 +25,106 @@ const Practice = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [hasAnsweredCurrent, setHasAnsweredCurrent] = useState(false);
   const [topicName, setTopicName] = useState('');
+  const [subjectName, setSubjectName] = useState(subjectFromQuery || '');
   const [error, setError] = useState(null);
 
   useEffect(() => {
     const loadQuestions = async () => {
       try {
-        console.log('🔍 Practice Page - topicId:', topicId);
-        console.log('🔍 Practice Page - subtopicId:', subtopicId);
-        console.log('🔍 Practice Page - difficulty:', difficulty);
+        console.log('🔍 Practice - topicId:', topicId, 'subject:', subjectFromQuery);
         
-        // First, get all structured data to find subject and topic names
         const structuredData = await dataService.loadAllData();
-        console.log('📊 Structured data loaded:', structuredData);
         
         let foundSubject = null;
         let foundTopic = null;
         
-        // Find the topic and subject
-        for (const subject of structuredData.subjects) {
-          for (const topic of subject.topics || []) {
-            if (String(topic.id) === String(topicId)) {
+        // If subject is provided, search only in that subject
+        if (subjectFromQuery) {
+          const subject = structuredData.subjects.find(s => 
+            s.name?.toLowerCase() === subjectFromQuery.toLowerCase()
+          );
+          if (subject) {
+            foundSubject = subject;
+            foundTopic = subject.topics?.find(t => 
+              String(t.id) === String(topicId) || 
+              t.name?.toLowerCase() === String(topicId).toLowerCase()
+            );
+          }
+        }
+        
+        // If not found, search all
+        if (!foundTopic) {
+          for (const subject of structuredData.subjects) {
+            const topic = subject.topics?.find(t => 
+              String(t.id) === String(topicId) || 
+              t.name?.toLowerCase() === String(topicId).toLowerCase()
+            );
+            if (topic) {
               foundSubject = subject;
               foundTopic = topic;
-              console.log('✅ Found topic:', foundTopic.name, 'in subject:', foundSubject.name);
               break;
             }
           }
-          if (foundTopic) break;
         }
         
         if (!foundSubject || !foundTopic) {
-          console.error('❌ Topic not found for ID:', topicId);
           setError('Topic not found');
           setLoading(false);
           return;
         }
         
         setTopicName(foundTopic.name);
+        setSubjectName(foundSubject.name);
         
-        // Try to get questions from the API
+        // Fetch questions for this specific subject and topic
+        const response = await questionApi.getPracticeQuestions({
+          subject: foundSubject.name,
+          topic: foundTopic.name,
+          limit: 50
+        });
+        
         let questionsData = [];
-        
-        try {
-          // If we have a subtopic, use it
-          let subtopicName = null;
-          if (subtopicId) {
-            const subtopic = foundTopic.subtopics?.find(st => String(st.id) === String(subtopicId));
-            if (subtopic) {
-              subtopicName = subtopic.name;
-              console.log('📌 Using subtopic:', subtopicName);
-            }
-          }
-          
-          // Fetch questions from API
-          const response = await questionApi.getPracticeQuestions({
-            subject: foundSubject.name,
-            topic: foundTopic.name,
-            subtopic: subtopicName,
-            difficulty: difficulty === 'mixed' ? null : difficulty,
-            limit: 50
-          });
-          
-          console.log('📝 API Response:', response.data);
-          questionsData = response.data.questions || [];
-          
-          // If no questions from API, try to get from structured data
-          if (questionsData.length === 0) {
-            console.log('⚠️ No questions from API, trying structured data...');
-            
-            // Get questions from the subtopic
-            if (subtopicId) {
-              const subtopic = foundTopic.subtopics?.find(st => String(st.id) === String(subtopicId));
-              if (subtopic && subtopic.questions) {
-                questionsData = subtopic.questions;
-              }
-            } else {
-              // Get questions from all subtopics
-              for (const st of foundTopic.subtopics || []) {
-                if (st.questions) {
-                  questionsData = [...questionsData, ...st.questions];
-                }
-              }
-            }
-          }
-        } catch (apiError) {
-          console.error('API error, using fallback data:', apiError);
-          // Fallback: use questions from structured data
-          if (subtopicId) {
-            const subtopic = foundTopic.subtopics?.find(st => String(st.id) === String(subtopicId));
-            if (subtopic && subtopic.questions) {
-              questionsData = subtopic.questions;
-            }
-          } else {
-            for (const st of foundTopic.subtopics || []) {
-              if (st.questions) {
-                questionsData = [...questionsData, ...st.questions];
-              }
-            }
-          }
+        if (response.data && Array.isArray(response.data.questions)) {
+          questionsData = response.data.questions;
+        } else if (Array.isArray(response.data)) {
+          questionsData = response.data;
         }
         
-        console.log('📝 Total questions loaded:', questionsData.length);
+        // CRITICAL: Filter to ensure we only have questions from the correct subject
+        questionsData = questionsData.filter(q => q.subject === foundSubject.name);
+        console.log(`📝 Found ${questionsData.length} questions for ${foundSubject.name}`);
         
-        // Filter by difficulty if not mixed
-        if (difficulty && difficulty !== 'mixed') {
-          questionsData = questionsData.filter(q => 
-            q.difficulty?.toLowerCase() === difficulty.toLowerCase()
-          );
-          console.log('📝 After difficulty filter:', questionsData.length);
+        if (questionsData.length === 0) {
+          setError(`No questions available for ${foundTopic.name} in ${foundSubject.name}`);
+          setLoading(false);
+          return;
         }
         
-        // Format questions for display
         const formattedQuestions = questionsData.map((q, index) => ({
-          id: q.id || q.question_id || index + 1,
+          id: q.id || index + 1,
           question: q.question || '',
-          options: q.options || [q.option_a, q.option_b, q.option_c, q.option_d] || ['', '', '', ''],
+          options: q.options || ['', '', '', ''],
           correctAnswer: q.correct_option !== undefined ? q.correct_option : 0,
           explanation: q.explanation || '',
           formula: q.formula || '',
           shortcut: q.shortcut || '',
-          wrongReason: q.wrongReason || 'Review the explanation above to understand the correct approach.',
-          difficulty: q.difficulty || 'Medium'
+          difficulty: q.difficulty || 'Medium',
+          hint: q.hint || ''
         }));
         
         setQuestions(formattedQuestions);
         setLoading(false);
         
       } catch (error) {
-        console.error('Error loading questions:', error);
-        setError(error.message || 'Failed to load questions');
+        console.error('Error:', error);
+        setError('Failed to load questions');
         setLoading(false);
       }
     };
 
-    loadQuestions();
-  }, [topicId, subtopicId, difficulty]);
+    if (topicId) loadQuestions();
+    else setLoading(false);
+  }, [topicId, subjectFromQuery]);
 
   // Timer effect
   useEffect(() => {
@@ -171,7 +137,6 @@ const Practice = () => {
         return prev - 1;
       });
     }, 1000);
-
     return () => clearInterval(timer);
   }, []);
 
@@ -189,9 +154,14 @@ const Practice = () => {
   if (error) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-500">{error}</p>
-        <Button onClick={() => navigate(-1)} className="mt-4">
-          Go Back
+        <div className="text-red-500 text-4xl mb-4">⚠️</div>
+        <p className="text-red-500 text-lg font-semibold">{error}</p>
+        <p className="text-sm text-gray-400 mt-2">
+          {subjectName ? `Subject: ${subjectName}` : ''}
+          {topicName ? ` • Topic: ${topicName}` : ''}
+        </p>
+        <Button onClick={() => navigate('/dashboard')} className="mt-4">
+          Back to Dashboard
         </Button>
       </div>
     );
@@ -200,8 +170,12 @@ const Practice = () => {
   if (!questions || questions.length === 0) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500">No questions available for this topic</p>
-        <p className="text-sm text-gray-400 mt-2">Topic: {topicName || 'Unknown'}</p>
+        <div className="text-gray-400 text-4xl mb-4">📝</div>
+        <p className="text-gray-500 text-lg font-semibold">No questions available</p>
+        <p className="text-sm text-gray-400 mt-2">
+          {subjectName ? `Subject: ${subjectName}` : ''}
+          {topicName ? ` • Topic: ${topicName}` : ''}
+        </p>
         <Button onClick={() => navigate('/dashboard')} className="mt-4">
           Back to Dashboard
         </Button>
@@ -224,12 +198,10 @@ const Practice = () => {
     const question = questions.find(q => q.id === questionId);
     if (!question) return;
     
-    const isCorrect = optionIndex === question.correctAnswer;
-    
     setAnswers({ ...answers, [questionId]: optionIndex });
     setHasAnsweredCurrent(true);
     
-    if (!isCorrect) {
+    if (optionIndex !== question.correctAnswer) {
       setShowExplanation(true);
     } else {
       setShowExplanation(false);
@@ -285,57 +257,59 @@ const Practice = () => {
     }
     
     setIsSubmitted(true);
-    const results = {
-      answers,
-      totalQuestions,
-      correct: Object.keys(answers).filter(qId => {
-        const q = questions.find(q => q.id === parseInt(qId));
-        return q && answers[qId] === q.correctAnswer;
-      }).length,
-      wrong: Object.keys(answers).filter(qId => {
-        const q = questions.find(q => q.id === parseInt(qId));
-        return q && answers[qId] !== undefined && answers[qId] !== q.correctAnswer;
-      }).length,
-      skipped: totalQuestions - Object.keys(answers).length,
-    };
     
-    navigate('/result', { state: { results, questions, answers } });
+    const correct = Object.keys(answers).filter(qId => {
+      const q = questions.find(q => q.id === parseInt(qId));
+      return q && answers[qId] === q.correctAnswer;
+    }).length;
+    
+    const wrong = Object.keys(answers).filter(qId => {
+      const q = questions.find(q => q.id === parseInt(qId));
+      return q && answers[qId] !== undefined && answers[qId] !== q.correctAnswer;
+    }).length;
+    
+    const skipped = totalQuestions - Object.keys(answers).length;
+    
+    navigate('/result', { 
+      state: { 
+        results: { answers, totalQuestions, correct, wrong, skipped },
+        questions, 
+        answers 
+      } 
+    });
   };
 
   const progress = ((currentQuestion + 1) / totalQuestions) * 100;
   const currentQId = currentQ.id;
   const isCurrentAnswered = answers[currentQId] !== undefined;
-  const isCurrentCorrect = isCurrentAnswered && answers[currentQId] === currentQ.correctAnswer;
-  const isCurrentWrong = isCurrentAnswered && !isCurrentCorrect;
+  const isCurrentWrong = isCurrentAnswered && answers[currentQId] !== currentQ.correctAnswer;
 
   return (
     <div className="max-w-4xl mx-auto space-y-4 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">{topicName || 'Practice'}</h2>
-          <p className="text-sm text-gray-500">{difficulty.charAt(0).toUpperCase() + difficulty.slice(1)} • {totalQuestions} Questions</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <i className={`fas fa-clock ${timeLeft < 60 ? 'text-red-500' : 'text-gray-500'}`} />
-            <span className={`font-mono font-semibold ${timeLeft < 60 ? 'text-red-500' : 'text-gray-700'}`}>
-              {formatTime(timeLeft)}
-            </span>
+          <h2 className="text-xl font-bold text-gray-900">
+            {topicName || 'Practice'}
+          </h2>
+          <div className="flex items-center gap-3 mt-1 flex-wrap">
+            <Badge variant="primary">{totalQuestions} Questions</Badge>
+            <span className="text-sm text-gray-500">⏱️ {formatTime(timeLeft)}</span>
+            {subjectName && (
+              <span className="text-xs text-gray-400">({subjectName})</span>
+            )}
           </div>
-          <Badge variant="primary">
-            {Object.keys(answers).length}/{totalQuestions} Attempted
-          </Badge>
         </div>
+        <Badge variant="primary" className="text-sm">
+          {Object.keys(answers).length}/{totalQuestions} Attempted
+        </Badge>
       </div>
 
-      {/* Progress Bar */}
       <div className="flex items-center gap-4">
         <ProgressBar progress={progress} showLabel={false} className="flex-1" />
         <span className="text-sm font-medium text-gray-500">Q{currentQuestion + 1}/{totalQuestions}</span>
       </div>
 
-      {/* Question */}
       <QuestionCard
         question={currentQ}
         index={currentQuestion}
@@ -348,7 +322,6 @@ const Practice = () => {
         isSubmitted={isSubmitted}
       />
 
-      {/* Navigation */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex gap-2">
           <Button 
@@ -389,14 +362,12 @@ const Practice = () => {
         </div>
       </div>
 
-      {/* Hint if answer is wrong */}
       {isCurrentWrong && !showExplanation && (
         <div className="p-4 bg-yellow-50 rounded-xl border border-yellow-200 text-yellow-800 text-sm">
           💡 This answer is incorrect. Click "Check Answer" to see the explanation.
         </div>
       )}
 
-      {/* Question Palette */}
       <Card>
         <h4 className="text-sm font-semibold text-gray-700 mb-3">Question Palette</h4>
         <div className="flex flex-wrap gap-2">

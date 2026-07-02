@@ -10,7 +10,7 @@ import AuthLayout from './layouts/AuthLayout';
 import Dashboard from './pages/Dashboard';
 import Subject from './pages/Subject';
 import Learn from './pages/Learn';
-import DifficultySelection from './pages/DifficultySelection';
+// Remove: import DifficultySelection from './pages/DifficultySelection';
 import Practice from './pages/Practice';
 import Result from './pages/Result';
 import Profile from './pages/Profile';
@@ -55,7 +55,7 @@ const AppRoutes = () => {
         <Route path="/subject/:subjectId" element={<Subject />} />
         <Route path="/learn/:topicId" element={<Learn />} />
         <Route path="/learn/:topicId/:subtopicId" element={<Learn />} />
-        <Route path="/difficulty/:topicId" element={<DifficultySelection />} />
+        {/* Remove: <Route path="/difficulty/:topicId" element={<DifficultySelection />} /> */}
         <Route path="/practice/:topicId" element={<Practice />} />
         <Route path="/practice/:topicId/:subtopicId" element={<Practice />} />
         <Route path="/result" element={<Result />} />

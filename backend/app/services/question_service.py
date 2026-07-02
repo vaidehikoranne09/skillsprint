@@ -188,25 +188,28 @@ class QuestionService:
         topic: str,
         subtopic: Optional[str] = None,
         difficulty: Optional[str] = None,
-        limit: int = 10
+        limit: int = 50
     ) -> List[Question]:
         """Get practice questions for a specific topic/subtopic"""
+        print(f"🔍 Fetching questions: subject={subject}, topic={topic}, subtopic={subtopic}")
+        
+        # Build the query with exact subject match
         query = db.query(Question).filter(
-            and_(
-                Question.subject == subject,
-                Question.topic == topic
-            )
+            Question.subject == subject,
+            Question.topic == topic
         )
         
         if subtopic:
             query = query.filter(Question.subtopic == subtopic)
-        if difficulty and difficulty != 'mixed':
-            query = query.filter(Question.difficulty == difficulty)
-        elif difficulty == 'mixed':
-            # Get a mix of difficulties
-            easy = query.filter(Question.difficulty == 'Easy').limit(limit//3).all()
-            medium = query.filter(Question.difficulty == 'Medium').limit(limit//3).all()
-            hard = query.filter(Question.difficulty == 'Hard').limit(limit//3).all()
-            return easy + medium + hard
         
-        return query.limit(limit).all()
+        if difficulty and difficulty.lower() != 'mixed':
+            query = query.filter(Question.difficulty == difficulty.capitalize())
+        
+        questions = query.limit(limit).all()
+        print(f"✅ Found {len(questions)} questions")
+        
+        # Log first question subject to verify
+        if questions:
+            print(f"📝 First question subject: {questions[0].subject}")
+        
+        return questions

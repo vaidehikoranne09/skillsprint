@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000' ||  '';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -41,13 +41,13 @@ export const questionApi = {
   
   // Get practice questions
   getPracticeQuestions: (params) => {
-  const { subject, topic, subtopic, difficulty, limit } = params;
-  let url = `/questions/practice?subject=${encodeURIComponent(subject)}&topic=${encodeURIComponent(topic)}`;
-  if (subtopic) url += `&subtopic=${encodeURIComponent(subtopic)}`;
-  if (difficulty) url += `&difficulty=${difficulty}`;
-  if (limit) url += `&limit=${limit}`;
-  return api.get(url);
-},
+    const { subject, topic, subtopic, difficulty, limit } = params;
+    let url = `/questions/practice?subject=${encodeURIComponent(subject)}&topic=${encodeURIComponent(topic)}`;
+    if (subtopic) url += `&subtopic=${encodeURIComponent(subtopic)}`;
+    if (difficulty) url += `&difficulty=${difficulty}`;
+    if (limit) url += `&limit=${limit}`;
+    return api.get(url);
+  },
   
   // Get question by ID
   getQuestion: (id) => api.get(`/questions/${id}`),

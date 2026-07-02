@@ -6,13 +6,13 @@ import DifficultyChip from '../ui/DifficultyChip';
 import ProgressBar from '../ui/ProgressBar';
 import Button from '../ui/Button';
 
-const TopicCard = ({ topic, subjectId }) => {
+const TopicCard = ({ topic, subjectId, subjectName }) => {
   const navigate = useNavigate();
 
   const handleStart = () => {
-    // Navigate to learn page with topic ID
+    // Pass both topic ID and subject name
     const topicId = topic.id || topic.name;
-    navigate(`/learn/${topicId}`);
+    navigate(`/learn/${topicId}?subject=${encodeURIComponent(subjectName || '')}`);
   };
 
   return (

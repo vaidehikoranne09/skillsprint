@@ -1,100 +1,143 @@
 import { questionApi } from './api';
+import { dashboardData } from '../data/dummyData';
 
 class DataService {
   constructor() {
     this.questions = [];
-    this.subjects = [];
     this.isLoaded = false;
+    this.subjects = {};
   }
 
-  // Load all data from backend API
   async loadAllData() {
     if (this.isLoaded) return this.getStructuredData();
 
     try {
-      // Fetch subjects
+      console.log('📊 Loading data from backend API...');
+      
       const subjectsResponse = await questionApi.getSubjects();
-      this.subjects = subjectsResponse.data;
+      console.log('📊 Subjects API response:', subjectsResponse.data);
       
-      // Fetch topics for each subject
-      const structuredSubjects = await Promise.all(
-        this.subjects.map(async (subject) => {
-          const topicsResponse = await questionApi.getTopics(subject.name);
-          return {
-            ...subject,
-            topics: topicsResponse.data.topics || []
+      let subjectsData = [];
+      if (Array.isArray(subjectsResponse.data)) {
+        subjectsData = subjectsResponse.data;
+      } else if (typeof subjectsResponse.data === 'object') {
+        subjectsData = Object.values(subjectsResponse.data);
+      }
+      
+      if (subjectsData.length === 0) {
+        console.warn('⚠️ No subjects found, using fallback');
+        return this.getFallbackData();
+      }
+      
+      this.subjects = {};
+      
+      for (const subject of subjectsData) {
+        const subjectName = subject.name || 'Unknown';
+        console.log(`📊 Processing subject: ${subjectName}`);
+        
+        let topicsList = [];
+        try {
+          const topicsResponse = await questionApi.getTopics(subjectName);
+          console.log(`📊 Topics for ${subjectName}:`, topicsResponse.data);
+          
+          if (topicsResponse.data && Array.isArray(topicsResponse.data.topics)) {
+            topicsList = topicsResponse.data.topics;
+          } else if (Array.isArray(topicsResponse.data)) {
+            topicsList = topicsResponse.data;
+          }
+        } catch (error) {
+          console.error(`Error fetching topics for ${subjectName}:`, error);
+        }
+        
+        this.subjects[subjectName] = {
+          id: Object.keys(this.subjects).length + 1,
+          name: subjectName,
+          icon: subject.icon || this.getSubjectIcon(subjectName),
+          description: subject.description || this.getSubjectDescription(subjectName),
+          color: subject.color || '#7c3aed',
+          totalQuestions: subject.total_questions || subject.totalQuestions || 0,
+          topics_count: topicsList.length,
+          progress: 0,
+          topics: {}
+        };
+        
+        for (const topic of topicsList) {
+          const topicName = topic.name || 'General';
+          this.subjects[subjectName].topics[topicName] = {
+            id: Object.keys(this.subjects[subjectName].topics).length + 1,
+            name: topicName,
+            totalQuestions: topic.total_questions || topic.totalQuestions || 0,
+            progress: 0,
+            description: topic.description || `Practice ${topicName} questions`,
+            icon: topic.icon || '📚',
+            subtopics: {}
           };
-        })
-      );
+          
+          const subtopics = topic.subtopics || [];
+          for (const subtopic of subtopics) {
+            const subtopicName = subtopic.name || 'General';
+            this.subjects[subjectName].topics[topicName].subtopics[subtopicName] = {
+              id: Object.keys(this.subjects[subjectName].topics[topicName].subtopics).length + 1,
+              name: subtopicName,
+              totalQuestions: subtopic.total_questions || subtopic.totalQuestions || 0,
+              progress: 0,
+              difficulty: subtopic.difficulty || 'Medium',
+              questions: []
+            };
+          }
+        }
+      }
       
-      this.subjects = structuredSubjects;
+      console.log('📊 Subjects built:', Object.keys(this.subjects));
       this.isLoaded = true;
-      
       return this.getStructuredData();
+      
     } catch (error) {
-      console.error('Error loading data from API:', error);
+      console.error('❌ Error loading data:', error);
       return this.getFallbackData();
     }
   }
 
-  // Load practice questions
-  async getPracticeQuestions(subject, topic, subtopic, difficulty, limit = 10) {
-    try {
-      const response = await questionApi.getPracticeQuestions({
-        subject,
-        topic,
-        subtopic,
-        difficulty,
-        limit
-      });
-      return response.data.questions || [];
-    } catch (error) {
-      console.error('Error loading practice questions:', error);
-      return [];
-    }
-  }
-
-  // Get structured data for UI
   getStructuredData() {
-    return {
-      subjects: this.subjects.map((subject, subjectIndex) => ({
-        id: subject.id || subjectIndex + 1,
-        name: subject.name,
-        icon: subject.icon || this.getSubjectIcon(subject.name),
-        description:
-          subject.description || this.getSubjectDescription(subject.name),
-        totalQuestions: subject.total_questions || subject.totalQuestions || 0,
-        progress: subject.progress || 0,
-
-        topics: (subject.topics || []).map((topic, topicIndex) => ({
-          id: topic.id || topicIndex + 1,
-          name: topic.name,
-          description:
-            topic.description || `Practice ${topic.name} questions`,
-          totalQuestions: topic.total_questions || topic.totalQuestions || 0,
-          progress: topic.progress || 0,
-
-          subtopics: (topic.subtopics || []).map(
-            (subtopic, subtopicIndex) => ({
-              id: subtopic.id || subtopicIndex + 1,
-              name: subtopic.name,
-              totalQuestions:
-                subtopic.total_questions || subtopic.totalQuestions || 0,
-              progress: subtopic.progress || 0,
-              difficulty: subtopic.difficulty || "Medium",
-              questions: subtopic.questions || [],
-            })
-          ),
-        })),
-      })),
-
-      questions: this.questions,
-    };
+    const subjects = Object.values(this.subjects).map(s => ({
+      ...s,
+      topics: Object.values(s.topics).map(t => ({
+        ...t,
+        subtopics: Object.values(t.subtopics)
+      }))
+    }));
+    
+    return { subjects, questions: [] };
   }
 
-  // Fallback data if API fails
+  getSubjectIcon(subject) {
+    const icons = {
+      'Arithmetic': 'fa-calculator',
+      'Verbal Ability': 'fa-comment-dots',
+      'Logical Reasoning': 'fa-brain'
+    };
+    return icons[subject] || 'fa-book';
+  }
+
+  getSubjectDescription(subject) {
+    const descriptions = {
+      'Arithmetic': 'Master quantitative aptitude with comprehensive topic coverage',
+      'Verbal Ability': 'Improve your language skills for placement exams',
+      'Logical Reasoning': 'Enhance your logical and analytical thinking abilities'
+    };
+    return descriptions[subject] || `Practice ${subject} questions`;
+  }
+
   getFallbackData() {
-    return import('../data/dummyData.js').then(module => module.dashboardData);
+    console.warn('⚠️ Using fallback dummy data');
+    const fallbackSubjects = (dashboardData.subjects || []).map(s => ({
+      ...s,
+      topics: (s.topics || []).map(t => ({
+        ...t,
+        subtopics: t.subtopics || []
+      }))
+    }));
+    return { subjects: fallbackSubjects, questions: [] };
   }
 }
 

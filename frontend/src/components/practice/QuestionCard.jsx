@@ -23,14 +23,25 @@ const QuestionCard = ({
     if (onBookmark) onBookmark(question.id);
   };
 
+  // Difficulty colors like LeetCode
+  const difficultyColors = {
+    Easy: 'bg-green-100 text-green-700 border-green-200',
+    Medium: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    Hard: 'bg-red-100 text-red-700 border-red-200'
+  };
+
   return (
     <Card className="mb-4 shadow-md border border-gray-100">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <Badge variant="primary">Question {index + 1} of {total}</Badge>
-          <Badge variant={question.difficulty === 'Easy' ? 'success' : question.difficulty === 'Medium' ? 'warning' : 'danger'}>
-            {question.difficulty}
-          </Badge>
+          {/* Difficulty Badge - Like LeetCode */}
+          <span className={`
+            px-3 py-1 rounded-full text-xs font-semibold border
+            ${difficultyColors[question.difficulty] || 'bg-gray-100 text-gray-700'}
+          `}>
+            {question.difficulty || 'Medium'}
+          </span>
           {hasAnswered && (
             <Badge variant={isCorrect ? 'success' : 'danger'}>
               {isCorrect ? '✅ Correct' : '❌ Incorrect'}
@@ -54,7 +65,6 @@ const QuestionCard = ({
           
           let optionClassName = 'p-3 rounded-xl border-2 cursor-pointer transition-all duration-200';
           
-          // If showing explanation OR submitted, show correct/incorrect highlights
           if (showExplanation || isSubmitted) {
             if (isCorrectAnswer) {
               optionClassName += ' border-green-500 bg-green-50 shadow-sm';
@@ -65,9 +75,7 @@ const QuestionCard = ({
             } else {
               optionClassName += ' border-gray-200 opacity-60';
             }
-          } 
-          // If the user has answered but we're not showing explanation yet
-          else if (hasAnswered && !showExplanation && !isSubmitted) {
+          } else if (hasAnswered && !showExplanation && !isSubmitted) {
             if (isSelected) {
               optionClassName += isCorrect 
                 ? ' border-green-500 bg-green-50 shadow-sm' 
@@ -75,9 +83,7 @@ const QuestionCard = ({
             } else {
               optionClassName += ' border-gray-200 hover:border-primary-300 hover:bg-gray-50';
             }
-          }
-          // Default state - no answer selected
-          else {
+          } else {
             optionClassName += isSelected 
               ? ' border-primary-500 bg-primary-50 shadow-sm' 
               : ' border-gray-200 hover:border-primary-300 hover:bg-gray-50';
@@ -109,7 +115,7 @@ const QuestionCard = ({
         })}
       </div>
 
-      {/* Quick feedback when answer is selected but explanation is not shown */}
+      {/* Quick feedback */}
       {!showExplanation && !isSubmitted && hasAnswered && (
         <div className={`mt-4 p-3 rounded-xl text-sm font-medium ${
           isCorrect 
@@ -124,7 +130,7 @@ const QuestionCard = ({
         </div>
       )}
 
-      {/* Explanation Section - Show when toggled or after submission */}
+      {/* Explanation */}
       {showExplanation && (
         <div className="space-y-3 mt-4">
           <div className={`p-5 rounded-xl border-2 ${

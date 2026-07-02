@@ -1,15 +1,28 @@
 import React from 'react';
-import { genderIllustrations } from '../../data/dummyData';
 
 const DynamicIllustration = ({ gender = 'neutral', className = '' }) => {
-  const illustration = genderIllustrations[gender] || genderIllustrations.neutral;
+  // Use emoji fallbacks if images don't load
+  const illustrations = {
+    female: '👩‍🎓',
+    male: '👨‍🎓',
+    neutral: '🧑‍🎓'
+  };
+
+  const getIllustration = () => {
+    switch(gender) {
+      case 'female':
+        return illustrations.female;
+      case 'male':
+        return illustrations.male;
+      default:
+        return illustrations.neutral;
+    }
+  };
 
   return (
-    <img 
-      src={illustration} 
-      alt={`${gender} learning illustration`}
-      className={`w-full h-auto max-w-md ${className}`}
-    />
+    <div className={`flex items-center justify-center ${className}`}>
+      <span className="text-8xl">{getIllustration()}</span>
+    </div>
   );
 };
 

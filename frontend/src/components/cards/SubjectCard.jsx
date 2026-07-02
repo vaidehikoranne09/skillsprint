@@ -6,12 +6,9 @@ import ProgressBar from '../ui/ProgressBar';
 const SubjectCard = ({ subject, onClick }) => {
   const navigate = useNavigate();
 
-  const handleClick = () => {
-    if (onClick) {
-      onClick(subject.id);
-    } else {
-      navigate(`/subject/${subject.id}`);
-    }
+    const handleClick = () => {
+    // Navigate using the subject ID
+    navigate(`/subject/${subject.id}`);
   };
 
   return (

@@ -1,17 +1,3 @@
-// frontend/src/data/dummyData.js
-
-// ==================== AUTH DATA ====================
-export const authData = {
-  user: {
-    id: 1,
-    name: "Vaidehi Koranne",
-    email: "vaidehi09@gmail.com",
-    gender: "female",
-    avatar: "https://ui-avatars.com/api/?name=Vaidehi+Koranne&background=7c3aed&color=fff&size=100",
-    joinedAt: "2026-06-29T10:30:00Z"
-  }
-};
-
 // ==================== GENDER ILLUSTRATIONS ====================
 export const genderIllustrations = {
   female: "https://illustrations.popsy.co/girl/girl-reading.svg",
@@ -66,19 +52,6 @@ export const dashboardData = {
       bgColor: "bg-purple-50",
       textColor: "text-purple-600",
       borderColor: "border-purple-200"
-    },
-    {
-      id: 4,
-      name: "Mock Tests",
-      icon: "fa-file-alt",
-      description: "Full-length placement mock tests",
-      progress: 10,
-      questionsSolved: 12,
-      totalQuestions: 120,
-      color: "#fbbf24",
-      bgColor: "bg-yellow-50",
-      textColor: "text-yellow-600",
-      borderColor: "border-yellow-200"
     }
   ],
   stats: {
@@ -120,108 +93,13 @@ export const dashboardData = {
 export const subjectData = {
   id: 1,
   name: "Arithmetic",
-  description: "Master quantitative aptitude with comprehensive coverage of arithmetic topics including percentages, averages, ratios, and more.",
+  description: "Master quantitative aptitude with comprehensive coverage of arithmetic topics.",
   icon: "fa-calculator",
   color: "#667eea",
   progress: 65,
-  totalTopics: 8,
+  totalTopics: 17,
   completedTopics: 5,
-  topics: [
-    {
-      id: 1,
-      name: "Profit & Loss",
-      description: "Learn profit, loss, discount, and marked price concepts",
-      totalQuestions: 120,
-      completedQuestions: 72,
-      progress: 60,
-      difficulty: "Medium",
-      icon: "💰",
-      subtopics: [
-        {
-          id: 1,
-          name: "Basic Profit",
-          description: "Understanding profit, cost price, and selling price",
-          youtubeVideo: "https://www.youtube.com/embed/dQw4w9WgXcQ",
-          questions: 30,
-          progress: 80,
-          timeEstimate: "15 min",
-          concepts: [
-            { id: 1, title: "Cost Price (CP)", description: "The price at which an item is purchased" },
-            { id: 2, title: "Selling Price (SP)", description: "The price at which an item is sold" },
-            { id: 3, title: "Profit", description: "SP - CP (when SP > CP)" }
-          ],
-          formulas: [
-            { id: 1, title: "Profit = Selling Price - Cost Price" },
-            { id: 2, title: "Profit % = (Profit/CP) × 100" }
-          ],
-          shortcuts: [
-            { id: 1, title: "To find SP with profit%: SP = CP × (1 + Profit%/100)" }
-          ]
-        },
-        {
-          id: 2,
-          name: "Profit Percentage",
-          description: "Calculate profit percentage and related problems",
-          youtubeVideo: "https://www.youtube.com/embed/dQw4w9WgXcQ",
-          questions: 25,
-          progress: 60,
-          timeEstimate: "20 min",
-          concepts: [
-            { id: 4, title: "Profit Percentage", description: "Profit expressed as percentage of CP" },
-            { id: 5, title: "SP with Profit %", description: "SP = CP × (1 + Profit%/100)" }
-          ],
-          formulas: [
-            { id: 3, title: "Profit% = (Profit/CP) × 100" },
-            { id: 4, title: "SP = CP × (1 + Profit%/100)" }
-          ],
-          shortcuts: [
-            { id: 2, title: "To find CP with Profit%: CP = SP / (1 + Profit%/100)" }
-          ]
-        },
-        {
-          id: 3,
-          name: "Discount",
-          description: "Calculate discounts, marked price, and selling price",
-          youtubeVideo: "https://www.youtube.com/embed/dQw4w9WgXcQ",
-          questions: 20,
-          progress: 40,
-          timeEstimate: "25 min",
-          concepts: [
-            { id: 6, title: "Marked Price (MP)", description: "The original price before discount" },
-            { id: 7, title: "Discount", description: "MP - SP" },
-            { id: 8, title: "Discount %", description: "(Discount/MP) × 100" }
-          ],
-          formulas: [
-            { id: 5, title: "Discount = Marked Price - Selling Price" },
-            { id: 6, title: "Discount % = (Discount/MP) × 100" }
-          ],
-          shortcuts: [
-            { id: 3, title: "SP = MP × (1 - Discount%/100)" }
-          ]
-        },
-        {
-          id: 4,
-          name: "Marked Price",
-          description: "Understanding marked price and relationship with discount",
-          youtubeVideo: "https://www.youtube.com/embed/dQw4w9WgXcQ",
-          questions: 20,
-          progress: 30,
-          timeEstimate: "20 min",
-          concepts: [
-            { id: 9, title: "Marked Price", description: "Price printed on the product" },
-            { id: 10, title: "SP after discount", description: "SP = MP - Discount" }
-          ],
-          formulas: [
-            { id: 7, title: "MP = SP / (1 - Discount%/100)" },
-            { id: 8, title: "Discount = MP × Discount%/100" }
-          ],
-          shortcuts: [
-            { id: 4, title: "If two discounts: SP = MP × (1-d1/100) × (1-d2/100)" }
-          ]
-        }
-      ]
-    }
-  ]
+  topics: []
 };
 
 // ==================== TOPIC DATA ====================
@@ -234,29 +112,37 @@ export const topicData = {
   totalQuestions: 120,
   completedQuestions: 72,
   icon: "💰",
-  videoPlaceholder: {
-    title: "Introduction to Profit & Loss",
-    description: "Learn the fundamentals of profit and loss calculations",
-    duration: "15:30"
-  },
-  concepts: [
-    { id: 1, title: "Cost Price (CP)", questionCount: 30, difficulty: "Easy", progress: 80, timeEstimate: "15 min" },
-    { id: 2, title: "Selling Price (SP)", questionCount: 25, difficulty: "Medium", progress: 60, timeEstimate: "20 min" },
-    { id: 3, title: "Profit & Loss", questionCount: 20, difficulty: "Hard", progress: 40, timeEstimate: "25 min" }
+  videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+  subtopics: [
+    {
+      id: 1,
+      name: "Basic Profit",
+      description: "Understanding profit, cost price, and selling price",
+      totalQuestions: 30,
+      progress: 80,
+      timeEstimate: "15 min",
+      difficulty: "Easy"
+    },
+    {
+      id: 2,
+      name: "Profit Percentage",
+      description: "Calculate profit percentage and related problems",
+      totalQuestions: 25,
+      progress: 60,
+      timeEstimate: "20 min",
+      difficulty: "Medium"
+    }
   ],
   formulas: [
-    { id: 1, title: "Profit = SP - CP" },
-    { id: 2, title: "Loss = CP - SP" },
-    { id: 3, title: "Profit% = (Profit/CP) × 100" },
-    { id: 4, title: "Loss% = (Loss/CP) × 100" }
+    { id: 1, title: "Profit = Selling Price - Cost Price" },
+    { id: 2, title: "Profit % = (Profit/CP) × 100" }
   ],
   shortcuts: [
-    { id: 1, title: "SP = CP × (1 + Profit%/100)" },
-    { id: 2, title: "CP = SP / (1 + Profit%/100)" }
+    { id: 1, title: "SP = CP × (1 + Profit%/100)" }
   ],
-  importantNotes: [
-    { id: 1, title: "Profit/Loss is always calculated on CP" },
-    { id: 2, title: "For discount, it is calculated on MP" }
+  concepts: [
+    { id: 1, title: "Cost Price (CP)", description: "The price at which an item is purchased" },
+    { id: 2, title: "Selling Price (SP)", description: "The price at which an item is sold" }
   ]
 };
 
@@ -277,30 +163,7 @@ export const practiceQuestions = {
       explanation: "Profit = SP - CP = ₹120 - ₹100 = ₹20",
       formula: "Profit = SP - CP",
       shortcut: "Direct subtraction gives profit",
-      wrongReason: "You may have confused profit with profit percentage. Profit is simply SP - CP.",
       difficulty: "Easy"
-    },
-    {
-      id: 2,
-      question: "If CP = ₹200 and Profit = ₹40, what is SP?",
-      options: ["₹160", "₹200", "₹240", "₹280"],
-      correctAnswer: 2,
-      explanation: "SP = CP + Profit = ₹200 + ₹40 = ₹240",
-      formula: "SP = CP + Profit",
-      shortcut: "Add profit to CP to get SP",
-      wrongReason: "Remember: SP is always CP + Profit. Don't subtract!",
-      difficulty: "Easy"
-    },
-    {
-      id: 3,
-      question: "If CP = ₹500 and SP = ₹450, what is the loss?",
-      options: ["₹30", "₹40", "₹50", "₹60"],
-      correctAnswer: 2,
-      explanation: "Loss = CP - SP = ₹500 - ₹450 = ₹50",
-      formula: "Loss = CP - SP",
-      shortcut: "Subtract SP from CP for loss",
-      wrongReason: "Loss occurs when CP > SP. Here CP 500 > SP 450, so loss is 50.",
-      difficulty: "Medium"
     }
   ]
 };
@@ -315,18 +178,13 @@ export const resultData = {
   skipped: 0,
   totalQuestions: 10,
   topicWisePerformance: [
-    { topic: "Basic Profit", correct: 3, total: 3, percentage: 100 },
-    { topic: "Profit Percentage", correct: 2, total: 3, percentage: 67 },
-    { topic: "Discount", correct: 2, total: 2, percentage: 100 },
-    { topic: "Marked Price", correct: 1, total: 2, percentage: 50 }
+    { topic: "Basic Profit", correct: 3, total: 3, percentage: 100 }
   ],
   difficultyWisePerformance: [
-    { difficulty: "Easy", correct: 4, total: 4, percentage: 100 },
-    { difficulty: "Medium", correct: 3, total: 4, percentage: 75 },
-    { difficulty: "Hard", correct: 1, total: 2, percentage: 50 }
+    { difficulty: "Easy", correct: 4, total: 4, percentage: 100 }
   ],
-  weakAreas: ["Successive Changes", "Advanced Percentage Problems"],
-  strongAreas: ["Basic Profit", "Data Interpretation"],
+  weakAreas: ["Successive Changes"],
+  strongAreas: ["Basic Profit"],
   incorrectQuestions: [3, 5, 7]
 };
 
@@ -371,4 +229,27 @@ export const profileData = {
     { id: 2, name: "Logical Reasoning Quiz", score: 70, date: "5 days ago" },
     { id: 3, name: "Verbal Ability Test", score: 65, date: "1 week ago" }
   ]
+};
+
+// ==================== AUTH DATA ====================
+export const authData = {
+  user: {
+    id: 1,
+    name: "Vaidehi Koranne",
+    email: "vaidehi09@gmail.com",
+    gender: "female",
+    avatar: "https://ui-avatars.com/api/?name=Vaidehi+Koranne&background=7c3aed&color=fff&size=100",
+    joinedAt: "2026-06-29T10:30:00Z"
+  }
+};
+
+export default {
+  genderIllustrations,
+  dashboardData,
+  subjectData,
+  topicData,
+  practiceQuestions,
+  resultData,
+  profileData,
+  authData
 };

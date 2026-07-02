@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSubjectData } from '../hooks/useData';
+import dataService from '../services/dataService';
 import TopicCard from '../components/cards/TopicCard';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
@@ -12,12 +13,81 @@ import Button from '../components/ui/Button';
 const Subject = () => {
   const { subjectId } = useParams();
   const navigate = useNavigate();
-  const { data, loading } = useSubjectData(subjectId);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all');
 
-  console.log('🔍 Subject Page - subjectId:', subjectId);
-  console.log('📊 Subject Data:', data);
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        console.log('🔍 Subject Page - subjectId:', subjectId);
+        
+        const structuredData = await dataService.loadAllData();
+        console.log('📊 Structured data:', structuredData);
+        console.log('📊 Subjects:', structuredData.subjects);
+        
+        if (!structuredData || !structuredData.subjects) {
+          setLoading(false);
+          return;
+        }
+        
+        // Try to find subject by ID or name
+        let subject = null;
+        const numericId = parseInt(subjectId);
+        
+        // First try by ID
+        subject = structuredData.subjects.find(s => s.id === numericId);
+        
+        // If not found, try by name
+        if (!subject) {
+          subject = structuredData.subjects.find(s => 
+            s.name?.toLowerCase() === String(subjectId).toLowerCase()
+          );
+        }
+        
+        // If still not found, use the first subject
+        if (!subject && structuredData.subjects.length > 0) {
+          subject = structuredData.subjects[0];
+          console.log('📊 Using first subject as fallback:', subject);
+        }
+        
+        console.log('📊 Found subject:', subject);
+        
+        if (subject) {
+          setData({
+            id: subject.id || 1,
+            name: subject.name,
+            description: subject.description || `Practice ${subject.name} questions`,
+            icon: subject.icon || 'fa-book',
+            color: subject.color || '#7c3aed',
+            progress: subject.progress || 0,
+            totalTopics: subject.topics?.length || 0,
+            completedTopics: subject.topics?.filter(t => t.progress > 80).length || 0,
+            topics: subject.topics?.map((t, idx) => ({
+              id: t.id || idx + 1,
+              name: t.name,
+              description: t.description || `Practice ${t.name} questions`,
+              totalQuestions: t.totalQuestions || 0,
+              completedQuestions: t.completedQuestions || 0,
+              progress: t.progress || 0,
+              difficulty: t.difficulty || 'Medium',
+              icon: t.icon || '📚',
+              subtopics: t.subtopics || []
+            })) || []
+          });
+        } else {
+          console.error('❌ No subject found');
+        }
+        setLoading(false);
+      } catch (error) {
+        console.error('Error loading subject:', error);
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [subjectId]);
 
   if (loading) {
     return (
@@ -34,6 +104,7 @@ const Subject = () => {
     return (
       <div className="text-center py-12">
         <p className="text-gray-500">Subject not found</p>
+        <p className="text-sm text-gray-400 mt-2">Subject ID: {subjectId}</p>
         <Button onClick={() => navigate('/dashboard')} className="mt-4">
           Back to Dashboard
         </Button>
@@ -55,7 +126,7 @@ const Subject = () => {
           className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl text-white flex-shrink-0"
           style={{ backgroundColor: data.color || '#7c3aed' }}
         >
-          <i className={`fas ${data.icon}`} />
+          <i className={`fas ${data.icon || 'fa-book'}`} />
         </div>
         <div className="flex-1">
           <h1 className="text-3xl font-bold text-gray-900">{data.name}</h1>
@@ -78,7 +149,6 @@ const Subject = () => {
             placeholder="Search topics..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            icon={({ className }) => <i className={`fas fa-search ${className}`} />}
           />
         </div>
         <div className="flex gap-2">
@@ -108,23 +178,18 @@ const Subject = () => {
         {filteredTopics.length === 0 ? (
           <Card className="text-center py-12">
             <p className="text-gray-500">No topics found matching your criteria</p>
+            <p className="text-sm text-gray-400 mt-2">Try adjusting your search or filter</p>
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredTopics.map((topic) => {
-              // Ensure each topic has an ID
-              const topicWithId = {
-                ...topic,
-                id: topic.id || topic.name // Fallback to name if no ID
-              };
-              return (
-                <TopicCard 
-                  key={topicWithId.id} 
-                  topic={topicWithId} 
-                  subjectId={data.id}
-                />
-              );
-            })}
+            {filteredTopics.map((topic) => (
+              <TopicCard 
+                key={topic.id} 
+                topic={topic} 
+                subjectId={data.id}
+                subjectName={data.name}
+              />
+            ))}
           </div>
         )}
       </div>
