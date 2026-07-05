@@ -39,13 +39,14 @@ export const questionApi = {
   // Get topics for a subject
   getTopics: (subject) => api.get(`/questions/topics/${encodeURIComponent(subject)}`),
   
-  // Get practice questions
+  // Get practice questions - FIXED: Proper parameter handling
   getPracticeQuestions: (params) => {
     const { subject, topic, subtopic, difficulty, limit } = params;
     let url = `/questions/practice?subject=${encodeURIComponent(subject)}&topic=${encodeURIComponent(topic)}`;
     if (subtopic) url += `&subtopic=${encodeURIComponent(subtopic)}`;
     if (difficulty) url += `&difficulty=${difficulty}`;
     if (limit) url += `&limit=${limit}`;
+    console.log('📤 API Request URL:', url);
     return api.get(url);
   },
   

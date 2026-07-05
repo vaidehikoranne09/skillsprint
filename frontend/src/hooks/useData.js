@@ -10,23 +10,20 @@ export const useDashboardData = () => {
     const loadData = async () => {
       try {
         const structuredData = await dataService.loadAllData();
-        
-        const dashboardData = {
+        setData({
           user: {
             name: "Vaidehi Koranne",
             email: "vaidehi09@gmail.com",
             gender: "female",
             avatar: "https://ui-avatars.com/api/?name=Vaidehi+Koranne&background=7c3aed&color=fff&size=100"
           },
-          subjects: structuredData.subjects.map((subject, index) => ({
-            id: index + 1,
-            name: subject.name,
-            icon: subject.icon || 'fa-book',
-            description: subject.description || `Practice ${subject.name} questions`,
-            progress: 0,
-            questionsSolved: 0,
-            totalQuestions: subject.totalQuestions || 0,
-            color: ['#667eea', '#f45c43', '#764ba2'][index % 3]
+          subjects: structuredData.subjects.map((s, i) => ({
+            id: i + 1,
+            name: s.name,
+            icon: s.icon,
+            description: s.description,
+            totalQuestions: s.totalQuestions || 0,
+            color: ['#667eea', '#f45c43', '#764ba2'][i % 3]
           })),
           stats: {
             overallAccuracy: 72,
@@ -34,24 +31,16 @@ export const useDashboardData = () => {
             practiceTime: "0h",
             testsTaken: 0,
             dailyStreak: 0
-          },
-          continueLearning: null,
-          strongTopics: [],
-          weakTopics: [],
-          recentActivity: []
-        };
-        
-        setData(dashboardData);
+          }
+        });
         setLoading(false);
       } catch (error) {
-        console.error('Error loading dashboard data:', error);
+        console.error('Error loading dashboard:', error);
         setLoading(false);
       }
     };
-
     loadData();
   }, []);
-
   return { data, loading };
 };
 
@@ -63,7 +52,11 @@ export const useSubjectData = (subjectId) => {
     const loadData = async () => {
       try {
         const structuredData = await dataService.loadAllData();
-        const subject = structuredData.subjects.find(s => s.id === parseInt(subjectId));
+        // Find subject by ID - convert to number for comparison
+        const subject = structuredData.subjects.find(s => Number(s.id) === Number(subjectId));
+        
+        console.log('🔍 useSubjectData - subjectId:', subjectId);
+        console.log('📊 Found subject:', subject);
         
         if (subject) {
           setData({
@@ -71,35 +64,40 @@ export const useSubjectData = (subjectId) => {
             name: subject.name,
             description: subject.description,
             icon: subject.icon,
-            color: subject.color,
-            progress: 0,
+            color: subject.color || '#7c3aed',
             totalTopics: subject.topics?.length || 0,
             completedTopics: 0,
-            topics: subject.topics?.map((t, idx) => ({
-              id: t.id || idx + 1,
+            progress: 0,
+            topics: (subject.topics || []).map(t => ({
+              id: t.id,
               name: t.name,
-              description: t.description || `Practice ${t.name} questions`,
+              description: t.description || `Practice ${t.name}`,
               totalQuestions: t.totalQuestions || 0,
               completedQuestions: 0,
               progress: 0,
-              difficulty: 'Medium',
+              difficulty: t.difficulty || 'Medium',
               icon: '📚',
               subtopics: t.subtopics || []
-            })) || []
+            }))
           });
+        } else {
+          console.warn('⚠️ Subject not found for ID:', subjectId);
+          setData(null);
         }
         setLoading(false);
       } catch (error) {
         console.error('Error loading subject:', error);
+        setData(null);
         setLoading(false);
       }
     };
-
     loadData();
   }, [subjectId]);
 
   return { data, loading };
 };
+
+// Add this to the useTopicData function to handle both ID and name
 
 export const useTopicData = (topicId) => {
   const [data, setData] = useState(null);
@@ -110,58 +108,67 @@ export const useTopicData = (topicId) => {
       try {
         const structuredData = await dataService.loadAllData();
         
+        // Check if topicId is a number or string
+        const isNumeric = !isNaN(topicId);
+        
         for (const subject of structuredData.subjects) {
           for (const topic of subject.topics || []) {
-            if (String(topic.id) === String(topicId) || 
-                topic.name?.toLowerCase() === String(topicId).toLowerCase()) {
+            let match = false;
+            
+            if (isNumeric) {
+              // Match by ID
+              match = String(topic.id) === String(topicId);
+            } else {
+              // Match by name (case insensitive)
+              match = topic.name?.toLowerCase() === String(topicId).toLowerCase();
+            }
+            
+            if (match) {
               setData({
-                id: topic.id || topicId,
-                name: topic.name,
+                ...topic,
                 subject: subject.name,
-                description: topic.description || `Master ${topic.name}`,
-                progress: 0,
-                totalQuestions: topic.totalQuestions || 0,
-                completedQuestions: 0,
-                icon: '📚',
-                subtopics: topic.subtopics || [],
-                videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
-                formulas: [{ id: 1, title: "Formula 1" }, { id: 2, title: "Formula 2" }],
-                shortcuts: [{ id: 1, title: "Shortcut 1" }, { id: 2, title: "Shortcut 2" }]
+                subtopics: topic.subtopics || []
               });
               setLoading(false);
               return;
             }
           }
         }
+        setData(null);
         setLoading(false);
       } catch (error) {
         console.error('Error loading topic:', error);
         setLoading(false);
       }
     };
-
     loadData();
   }, [topicId]);
 
   return { data, loading };
 };
-
-export const usePracticeQuestions = (topicId, difficulty) => {
+export const usePracticeQuestions = (topicId, difficulty, subjectName, subtopicName) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    const loadData = async () => {
+    const loadQuestions = async () => {
+      if (!topicId) {
+        setData({ questions: [], totalQuestions: 0 });
+        setLoading(false);
+        return;
+      }
+
       try {
-        const structuredData = await dataService.loadAllData();
+        console.log('🔍 Fetching practice questions:', { topicId, subjectName, subtopicName });
         
+        const structuredData = await dataService.loadAllData();
         let foundSubject = null;
         let foundTopic = null;
-        
+
         for (const subject of structuredData.subjects) {
           for (const topic of subject.topics || []) {
-            if (String(topic.id) === String(topicId) || 
-                topic.name?.toLowerCase() === String(topicId).toLowerCase()) {
+            if (String(topic.id) === String(topicId)) {
               foundSubject = subject;
               foundTopic = topic;
               break;
@@ -169,59 +176,68 @@ export const usePracticeQuestions = (topicId, difficulty) => {
           }
           if (foundTopic) break;
         }
-        
-        if (foundSubject && foundTopic) {
-          const response = await questionApi.getPracticeQuestions({
-            subject: foundSubject.name,
-            topic: foundTopic.name,
-            difficulty: difficulty === 'mixed' ? null : difficulty,
-            limit: 50
-          });
-          
-          let questions = [];
-          if (response.data && Array.isArray(response.data.questions)) {
-            questions = response.data.questions;
-          } else if (Array.isArray(response.data)) {
-            questions = response.data;
-          }
-          
-          // Verify subject
-          questions = questions.filter(q => q.subject === foundSubject.name);
-          
-          const formattedQuestions = questions.map((q, index) => ({
-            id: q.id || index + 1,
-            question: q.question || '',
-            options: q.options || [q.option_a, q.option_b, q.option_c, q.option_d] || ['', '', '', ''],
-            correctAnswer: q.correct_option !== undefined ? q.correct_option : 0,
-            explanation: q.explanation || '',
-            formula: q.formula || '',
-            shortcut: q.shortcut || '',
-            difficulty: q.difficulty || 'Medium',
-            hint: q.hint || ''
-          }));
-          
-          setData({
-            topicId: parseInt(topicId),
-            topicName: foundTopic.name,
-            totalQuestions: formattedQuestions.length,
-            timeLimit: 15,
-            questions: formattedQuestions
-          });
+
+        if (!foundTopic) {
+          console.warn('⚠️ Topic not found:', topicId);
+          setData({ questions: [], totalQuestions: 0 });
+          setLoading(false);
+          return;
         }
+
+        const finalSubject = subjectName || foundSubject.name;
+        const finalTopic = foundTopic.name;
+        const finalSubtopic = subtopicName || null;
+
+        console.log('📤 Fetching with:', { finalSubject, finalTopic, finalSubtopic });
+
+        const response = await questionApi.getPracticeQuestions({
+          subject: finalSubject,
+          topic: finalTopic,
+          subtopic: finalSubtopic,
+          difficulty: difficulty === 'mixed' ? null : difficulty,
+          limit: 50
+        });
+
+        let questions = [];
+        if (response.data && Array.isArray(response.data.questions)) {
+          questions = response.data.questions;
+        }
+
+        console.log(`✅ Found ${questions.length} questions`);
+
+        const formattedQuestions = questions.map((q, index) => ({
+          id: q.id || index + 1,
+          question: q.question || '',
+          options: q.options || ['', '', '', ''],
+          correctAnswer: q.correct_option !== undefined ? q.correct_option : 0,
+          explanation: q.explanation || '',
+          formula: q.formula || '',
+          shortcut: q.shortcut || '',
+          difficulty: q.difficulty || 'Medium',
+          hint: q.hint || ''
+        }));
+
+        setData({
+          topicId: parseInt(topicId),
+          topicName: foundTopic.name,
+          totalQuestions: formattedQuestions.length,
+          questions: formattedQuestions
+        });
         setLoading(false);
+
       } catch (error) {
-        console.error('Error loading practice questions:', error);
+        console.error('❌ Error loading practice questions:', error);
+        setData({ questions: [], totalQuestions: 0 });
         setLoading(false);
       }
     };
+    loadQuestions();
+  }, [topicId, difficulty, subjectName, subtopicName]);
 
-    loadData();
-  }, [topicId, difficulty]);
-
-  return { data, loading };
+  return { data, loading, error };
 };
 
-export const useResultData = (practiceId) => {
+export const useResultData = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -234,16 +250,11 @@ export const useResultData = (practiceId) => {
         correct: 8,
         wrong: 2,
         skipped: 0,
-        totalQuestions: 10,
-        topicWisePerformance: [],
-        difficultyWisePerformance: [],
-        weakAreas: [],
-        strongAreas: [],
-        incorrectQuestions: []
+        totalQuestions: 10
       });
       setLoading(false);
     }, 500);
-  }, [practiceId]);
+  }, []);
 
   return { data, loading };
 };
@@ -270,11 +281,7 @@ export const useProfileData = () => {
           practiceTime: "0h",
           testsTaken: 0,
           currentStreak: 0
-        },
-        achievements: [],
-        badges: [],
-        subjectProgress: [],
-        recentTests: []
+        }
       });
       setLoading(false);
     }, 500);

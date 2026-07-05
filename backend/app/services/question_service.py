@@ -49,8 +49,6 @@ class QuestionService:
         print(f"✅ Loaded {total_loaded} questions total")
         return {'total_loaded': total_loaded}
     
-    # ============ ADD THESE METHODS ============
-    
     @staticmethod
     def get_subject_summary(db: Session) -> Dict[str, Any]:
         """Get summary of all subjects"""
@@ -63,17 +61,6 @@ class QuestionService:
                 Question.subject == subject_name
             ).distinct().count()
             
-            # Get difficulty distribution
-            diff_counts = db.query(
-                Question.difficulty, 
-                func.count(Question.id)
-            ).filter(Question.subject == subject_name).group_by(Question.difficulty).all()
-            
-            difficulty_distribution = {}
-            for diff, count in diff_counts:
-                diff_name = diff.value if hasattr(diff, 'value') else str(diff)
-                difficulty_distribution[diff_name] = count
-            
             subjects[subject_name] = {
                 'name': subject_name,
                 'icon': meta.get('icon', 'fa-book'),
@@ -81,8 +68,7 @@ class QuestionService:
                 'color': meta.get('color', '#7c3aed'),
                 'total_questions': total,
                 'topics_count': topics,
-                'difficulty_distribution': difficulty_distribution,
-                'progress': 0.0  # Will be updated with user progress later
+                'progress': 0.0
             }
         
         return subjects
@@ -181,6 +167,7 @@ class QuestionService:
         
         return query.all()
     
+    # backend/app/services/question_service.py
     @staticmethod
     def get_practice_questions(
         db: Session,
@@ -190,26 +177,8 @@ class QuestionService:
         difficulty: Optional[str] = None,
         limit: int = 50
     ) -> List[Question]:
-        """Get practice questions for a specific topic/subtopic"""
-        print(f"🔍 Fetching questions: subject={subject}, topic={topic}, subtopic={subtopic}")
-        
-        # Build the query with exact subject match
-        query = db.query(Question).filter(
-            Question.subject == subject,
-            Question.topic == topic
-        )
-        
+        query = db.query(Question).filter(Question.subject == subject)
+        query = query.filter(Question.topic == topic)
         if subtopic:
             query = query.filter(Question.subtopic == subtopic)
-        
-        if difficulty and difficulty.lower() != 'mixed':
-            query = query.filter(Question.difficulty == difficulty.capitalize())
-        
-        questions = query.limit(limit).all()
-        print(f"✅ Found {len(questions)} questions")
-        
-        # Log first question subject to verify
-        if questions:
-            print(f"📝 First question subject: {questions[0].subject}")
-        
-        return questions
+        return query.limit(limit).all()

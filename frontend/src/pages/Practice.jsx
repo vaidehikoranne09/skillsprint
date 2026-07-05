@@ -9,11 +9,14 @@ import ProgressBar from '../components/ui/ProgressBar';
 import Badge from '../components/ui/Badge';
 
 const Practice = () => {
-  const { topicId } = useParams();
+  const { topicId, subtopicId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   
+  // Get ALL parameters from URL
   const subjectFromQuery = searchParams.get('subject');
+  const subtopicFromQuery = searchParams.get('subtopic');
+  const difficultyFromQuery = searchParams.get('difficulty') || 'mixed';
   
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,43 +34,62 @@ const Practice = () => {
   useEffect(() => {
     const loadQuestions = async () => {
       try {
-        console.log('🔍 Practice - topicId:', topicId, 'subject:', subjectFromQuery);
+        console.log('🔍 Practice Page - Params:', {
+          topicId,
+          subtopicId,
+          subjectFromQuery,
+          subtopicFromQuery
+        });
         
+        // Get all structured data to find topic info
         const structuredData = await dataService.loadAllData();
         
         let foundSubject = null;
         let foundTopic = null;
+        let foundSubtopic = null;
         
-        // If subject is provided, search only in that subject
+        // First try: Use subject from query
         if (subjectFromQuery) {
+          console.log('📌 Using subject from query:', subjectFromQuery);
           const subject = structuredData.subjects.find(s => 
             s.name?.toLowerCase() === subjectFromQuery.toLowerCase()
           );
           if (subject) {
             foundSubject = subject;
-            foundTopic = subject.topics?.find(t => 
-              String(t.id) === String(topicId) || 
-              t.name?.toLowerCase() === String(topicId).toLowerCase()
-            );
-          }
-        }
-        
-        // If not found, search all
-        if (!foundTopic) {
-          for (const subject of structuredData.subjects) {
-            const topic = subject.topics?.find(t => 
-              String(t.id) === String(topicId) || 
-              t.name?.toLowerCase() === String(topicId).toLowerCase()
-            );
-            if (topic) {
-              foundSubject = subject;
-              foundTopic = topic;
-              break;
+            // Find topic by name or ID
+            for (const topic of subject.topics || []) {
+              // Check if topicId matches by name or ID
+              const topicNameMatch = topic.name?.toLowerCase() === String(topicId).toLowerCase();
+              const topicIdMatch = String(topic.id) === String(topicId);
+              if (topicNameMatch || topicIdMatch) {
+                foundTopic = topic;
+                console.log('✅ Found topic:', foundTopic.name);
+                break;
+              }
             }
           }
         }
         
+        // Second try: Search all subjects
+        if (!foundTopic) {
+          console.log('🔍 Searching all subjects for topic');
+          for (const subject of structuredData.subjects) {
+            for (const topic of subject.topics || []) {
+              const topicNameMatch = topic.name?.toLowerCase() === String(topicId).toLowerCase();
+              const topicIdMatch = String(topic.id) === String(topicId);
+              if (topicNameMatch || topicIdMatch) {
+                foundSubject = subject;
+                foundTopic = topic;
+                console.log('✅ Found topic:', foundTopic.name, 'in subject:', foundSubject.name);
+                break;
+              }
+            }
+            if (foundTopic) break;
+          }
+        }
+        
         if (!foundSubject || !foundTopic) {
+          console.error('❌ Topic not found:', topicId);
           setError('Topic not found');
           setLoading(false);
           return;
@@ -76,12 +98,36 @@ const Practice = () => {
         setTopicName(foundTopic.name);
         setSubjectName(foundSubject.name);
         
-        // Fetch questions for this specific subject and topic
-        const response = await questionApi.getPracticeQuestions({
+        // Find subtopic if provided
+        if (subtopicFromQuery || subtopicId) {
+          const searchSubtopic = subtopicFromQuery || subtopicId;
+          foundSubtopic = foundTopic.subtopics?.find(st => 
+            st.name?.toLowerCase() === String(searchSubtopic).toLowerCase() ||
+            String(st.id) === String(searchSubtopic)
+          );
+          if (foundSubtopic) {
+            console.log('✅ Found subtopic:', foundSubtopic.name);
+          }
+        }
+        
+        // CRITICAL: Build the API request with ALL parameters
+        const params = {
           subject: foundSubject.name,
           topic: foundTopic.name,
           limit: 50
-        });
+        };
+        
+        if (foundSubtopic) {
+          params.subtopic = foundSubtopic.name;
+        } else if (subtopicFromQuery) {
+          params.subtopic = subtopicFromQuery;
+        }
+        
+        console.log('📤 Fetching questions with params:', params);
+        
+        // Make the API request
+        const response = await questionApi.getPracticeQuestions(params);
+        console.log('📝 API Response:', response.data);
         
         let questionsData = [];
         if (response.data && Array.isArray(response.data.questions)) {
@@ -90,16 +136,23 @@ const Practice = () => {
           questionsData = response.data;
         }
         
-        // CRITICAL: Filter to ensure we only have questions from the correct subject
-        questionsData = questionsData.filter(q => q.subject === foundSubject.name);
-        console.log(`📝 Found ${questionsData.length} questions for ${foundSubject.name}`);
+        // Double-check filtering
+        questionsData = questionsData.filter(q => {
+          const matchesSubject = q.subject === foundSubject.name;
+          const matchesTopic = q.topic === foundTopic.name;
+          const matchesSubtopic = foundSubtopic ? q.subtopic === foundSubtopic.name : true;
+          return matchesSubject && matchesTopic && matchesSubtopic;
+        });
+        
+        console.log(`✅ Found ${questionsData.length} questions for ${foundSubject.name} - ${foundTopic.name}`);
         
         if (questionsData.length === 0) {
-          setError(`No questions available for ${foundTopic.name} in ${foundSubject.name}`);
+          setError(`No questions available for ${foundSubtopic ? foundSubtopic.name : foundTopic.name}`);
           setLoading(false);
           return;
         }
         
+        // Format questions
         const formattedQuestions = questionsData.map((q, index) => ({
           id: q.id || index + 1,
           question: q.question || '',
@@ -109,22 +162,28 @@ const Practice = () => {
           formula: q.formula || '',
           shortcut: q.shortcut || '',
           difficulty: q.difficulty || 'Medium',
-          hint: q.hint || ''
+          hint: q.hint || '',
+          subject: q.subject || foundSubject.name,
+          topic: q.topic || foundTopic.name,
+          subtopic: q.subtopic || foundSubtopic?.name || ''
         }));
         
         setQuestions(formattedQuestions);
         setLoading(false);
         
       } catch (error) {
-        console.error('Error:', error);
+        console.error('❌ Error loading questions:', error);
         setError('Failed to load questions');
         setLoading(false);
       }
     };
 
-    if (topicId) loadQuestions();
-    else setLoading(false);
-  }, [topicId, subjectFromQuery]);
+    if (topicId) {
+      loadQuestions();
+    } else {
+      setLoading(false);
+    }
+  }, [topicId, subtopicId, subjectFromQuery, subtopicFromQuery]);
 
   // Timer effect
   useEffect(() => {
@@ -221,16 +280,6 @@ const Practice = () => {
       alert('Please answer the question before proceeding.');
       return;
     }
-
-    const currentQ = questions[currentQuestion];
-    const selectedAnswer = answers[currentQ.id];
-    const isWrong = selectedAnswer !== undefined && selectedAnswer !== currentQ.correctAnswer;
-
-    if (isWrong && !showExplanation) {
-      setShowExplanation(true);
-      return;
-    }
-
     if (currentQuestion < totalQuestions - 1) {
       setCurrentQuestion(currentQuestion + 1);
       setShowExplanation(false);
@@ -257,17 +306,14 @@ const Practice = () => {
     }
     
     setIsSubmitted(true);
-    
     const correct = Object.keys(answers).filter(qId => {
       const q = questions.find(q => q.id === parseInt(qId));
       return q && answers[qId] === q.correctAnswer;
     }).length;
-    
     const wrong = Object.keys(answers).filter(qId => {
       const q = questions.find(q => q.id === parseInt(qId));
       return q && answers[qId] !== undefined && answers[qId] !== q.correctAnswer;
     }).length;
-    
     const skipped = totalQuestions - Object.keys(answers).length;
     
     navigate('/result', { 
@@ -284,9 +330,14 @@ const Practice = () => {
   const isCurrentAnswered = answers[currentQId] !== undefined;
   const isCurrentWrong = isCurrentAnswered && answers[currentQId] !== currentQ.correctAnswer;
 
+  const difficultyCounts = {
+    Easy: questions.filter(q => q.difficulty === 'Easy').length,
+    Medium: questions.filter(q => q.difficulty === 'Medium').length,
+    Hard: questions.filter(q => q.difficulty === 'Hard').length
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-4 animate-fade-in">
-      {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-xl font-bold text-gray-900">
@@ -298,6 +349,21 @@ const Practice = () => {
             {subjectName && (
               <span className="text-xs text-gray-400">({subjectName})</span>
             )}
+            <div className="flex gap-1 text-xs">
+              {Object.entries(difficultyCounts).map(([diff, count]) => {
+                if (count === 0) return null;
+                const colors = {
+                  Easy: 'text-green-600 bg-green-50 border border-green-200',
+                  Medium: 'text-yellow-600 bg-yellow-50 border border-yellow-200',
+                  Hard: 'text-red-600 bg-red-50 border border-red-200'
+                };
+                return (
+                  <span key={diff} className={`px-2 py-0.5 rounded-full ${colors[diff]}`}>
+                    {diff}: {count}
+                  </span>
+                );
+              })}
+            </div>
           </div>
         </div>
         <Badge variant="primary" className="text-sm">

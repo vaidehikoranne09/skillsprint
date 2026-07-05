@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSubjectData } from '../hooks/useData';
-import dataService from '../services/dataService';
 import TopicCard from '../components/cards/TopicCard';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
@@ -13,81 +12,12 @@ import Button from '../components/ui/Button';
 const Subject = () => {
   const { subjectId } = useParams();
   const navigate = useNavigate();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { data, loading } = useSubjectData(subjectId);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all');
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        console.log('🔍 Subject Page - subjectId:', subjectId);
-        
-        const structuredData = await dataService.loadAllData();
-        console.log('📊 Structured data:', structuredData);
-        console.log('📊 Subjects:', structuredData.subjects);
-        
-        if (!structuredData || !structuredData.subjects) {
-          setLoading(false);
-          return;
-        }
-        
-        // Try to find subject by ID or name
-        let subject = null;
-        const numericId = parseInt(subjectId);
-        
-        // First try by ID
-        subject = structuredData.subjects.find(s => s.id === numericId);
-        
-        // If not found, try by name
-        if (!subject) {
-          subject = structuredData.subjects.find(s => 
-            s.name?.toLowerCase() === String(subjectId).toLowerCase()
-          );
-        }
-        
-        // If still not found, use the first subject
-        if (!subject && structuredData.subjects.length > 0) {
-          subject = structuredData.subjects[0];
-          console.log('📊 Using first subject as fallback:', subject);
-        }
-        
-        console.log('📊 Found subject:', subject);
-        
-        if (subject) {
-          setData({
-            id: subject.id || 1,
-            name: subject.name,
-            description: subject.description || `Practice ${subject.name} questions`,
-            icon: subject.icon || 'fa-book',
-            color: subject.color || '#7c3aed',
-            progress: subject.progress || 0,
-            totalTopics: subject.topics?.length || 0,
-            completedTopics: subject.topics?.filter(t => t.progress > 80).length || 0,
-            topics: subject.topics?.map((t, idx) => ({
-              id: t.id || idx + 1,
-              name: t.name,
-              description: t.description || `Practice ${t.name} questions`,
-              totalQuestions: t.totalQuestions || 0,
-              completedQuestions: t.completedQuestions || 0,
-              progress: t.progress || 0,
-              difficulty: t.difficulty || 'Medium',
-              icon: t.icon || '📚',
-              subtopics: t.subtopics || []
-            })) || []
-          });
-        } else {
-          console.error('❌ No subject found');
-        }
-        setLoading(false);
-      } catch (error) {
-        console.error('Error loading subject:', error);
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, [subjectId]);
+  console.log('🔍 Subject Page - subjectId:', subjectId);
+  console.log('📊 Subject Data:', data);
 
   if (loading) {
     return (
@@ -112,11 +42,14 @@ const Subject = () => {
     );
   }
 
-  const filteredTopics = data.topics?.filter(topic => {
+  // Ensure topics is always an array
+  const topics = data.topics || [];
+  
+  const filteredTopics = topics.filter(topic => {
     const matchesSearch = topic.name?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filter === 'all' || topic.difficulty === filter;
     return matchesSearch && matchesFilter;
-  }) || [];
+  });
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -132,7 +65,7 @@ const Subject = () => {
           <h1 className="text-3xl font-bold text-gray-900">{data.name}</h1>
           <p className="text-gray-500 mt-1">{data.description}</p>
           <div className="flex items-center gap-4 mt-3">
-            <Badge variant="info">{data.totalTopics || 0} Topics</Badge>
+            <Badge variant="info">{topics.length} Topics</Badge>
             <Badge variant="success">{data.completedTopics || 0} Completed</Badge>
             <span className="text-sm text-gray-500">{Math.round(data.progress || 0)}% Complete</span>
           </div>
@@ -182,14 +115,18 @@ const Subject = () => {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredTopics.map((topic) => (
-              <TopicCard 
-                key={topic.id} 
-                topic={topic} 
-                subjectId={data.id}
-                subjectName={data.name}
-              />
-            ))}
+            {filteredTopics.map((topic) => {
+              // Ensure each topic has a unique ID
+              const topicId = topic.id || `topic-${topic.name}-${Math.random()}`;
+              return (
+                <TopicCard 
+                  key={topicId}
+                  topic={topic} 
+                  subjectId={data.id}
+                  subjectName={data.name}
+                />
+              );
+            })}
           </div>
         )}
       </div>

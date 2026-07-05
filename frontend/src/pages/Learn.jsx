@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTopicData } from '../hooks/useData';
-import dataService from '../services/dataService';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import SectionTitle from '../components/ui/SectionTitle';
@@ -14,88 +13,15 @@ const Learn = () => {
   const navigate = useNavigate();
   const subjectFromQuery = searchParams.get('subject');
   
+  // useTopicData now handles both ID and name
   const { data, loading } = useTopicData(topicId);
   const [activeTab, setActiveTab] = useState('concepts');
-  const [fallbackData, setFallbackData] = useState(null);
-  const [subjectName, setSubjectName] = useState(subjectFromQuery || '');
-  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      
-      // If we already have data from the hook, use it
-      if (data) {
-        setSubjectName(data.subject || subjectFromQuery || '');
-        setIsLoading(false);
-        return;
-      }
-      
-      // Otherwise, load fallback data
-      try {
-        const structuredData = await dataService.loadAllData();
-        
-        // Find the topic and its subject
-        let foundTopic = null;
-        let foundSubject = null;
-        
-        for (const subject of structuredData.subjects) {
-          for (const topic of subject.topics || []) {
-            if (String(topic.id) === String(topicId) || 
-                topic.name?.toLowerCase() === String(topicId).toLowerCase()) {
-              foundTopic = topic;
-              foundSubject = subject;
-              break;
-            }
-          }
-          if (foundTopic) break;
-        }
-        
-        if (foundTopic && foundSubject) {
-          setSubjectName(foundSubject.name);
-          setFallbackData({
-            id: foundTopic.id || topicId,
-            name: foundTopic.name,
-            subject: foundSubject.name,
-            description: foundTopic.description || `Master ${foundTopic.name}`,
-            progress: foundTopic.progress || 0,
-            totalQuestions: foundTopic.totalQuestions || 100,
-            completedQuestions: foundTopic.completedQuestions || 0,
-            icon: foundTopic.icon || '📚',
-            subtopics: foundTopic.subtopics || [],
-            videoUrl: foundTopic.videoUrl || 'https://www.youtube.com/embed/dQw4w9WgXcQ',
-            formulas: foundTopic.formulas || [
-              { id: 1, title: "Formula 1: Example formula" },
-              { id: 2, title: "Formula 2: Example formula" }
-            ],
-            concepts: (foundTopic.subtopics || []).map(st => ({
-              id: st.id || Math.random(),
-              title: st.name,
-              description: `Master ${st.name} concepts`,
-              questionCount: st.totalQuestions || 10,
-              difficulty: st.difficulty || 'Medium'
-            })),
-            shortcuts: foundTopic.shortcuts || [
-              { id: 1, title: "Shortcut 1: Example shortcut" },
-              { id: 2, title: "Shortcut 2: Example shortcut" }
-            ]
-          });
-        }
-        setIsLoading(false);
-      } catch (error) {
-        console.error('Error loading fallback data:', error);
-        setIsLoading(false);
-      }
-    };
+  console.log('🔍 Learn Page - topicId:', topicId);
+  console.log('🔍 Learn Page - subjectFromQuery:', subjectFromQuery);
+  console.log('📊 Learn Page - data:', data);
 
-    loadData();
-  }, [topicId, data, subjectFromQuery]);
-
-  const displayData = data || fallbackData;
-  const finalSubject = subjectName || displayData?.subject || '';
-  const finalLoading = loading || isLoading;
-
-  if (finalLoading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
@@ -106,11 +32,11 @@ const Learn = () => {
     );
   }
 
-  if (!displayData) {
+  if (!data) {
     return (
       <div className="text-center py-12">
         <p className="text-gray-500">Topic not found</p>
-        <p className="text-sm text-gray-400 mt-2">Topic ID: {topicId}</p>
+        <p className="text-sm text-gray-400 mt-2">Topic: {topicId}</p>
         <Button onClick={() => navigate('/dashboard')} className="mt-4">
           Back to Dashboard
         </Button>
@@ -118,16 +44,32 @@ const Learn = () => {
     );
   }
 
-  const subtopics = displayData.subtopics || displayData.concepts || [];
+  const subtopics = data.subtopics || [];
   const selectedSubtopic = subtopicId 
     ? subtopics.find(s => String(s.id) === String(subtopicId)) 
     : subtopics[0];
 
-  const handleStartPractice = () => {
-    const id = displayData.id || topicId;
-    const subject = finalSubject || displayData.subject || '';
-    // Pass subject as query parameter to practice page
-    navigate(`/practice/${id}?subject=${encodeURIComponent(subject)}`);
+  const handleStartPractice = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const subject = subjectFromQuery || data.subject || '';
+    const topicName = data.name || topicId;
+    
+    console.log('🎯 Start Practice clicked!');
+    console.log('  Topic Name:', topicName);
+    console.log('  Subject:', subject);
+    console.log('  Subtopic:', selectedSubtopic?.name || '');
+    
+    // Build URL with parameters
+    let url = `/practice/${encodeURIComponent(topicName)}`;
+    const params = new URLSearchParams();
+    if (subject) params.append('subject', subject);
+    if (selectedSubtopic?.name) params.append('subtopic', selectedSubtopic.name);
+    if (params.toString()) url += `?${params.toString()}`;
+    
+    console.log('  Navigating to:', url);
+    navigate(url);
   };
 
   return (
@@ -136,19 +78,19 @@ const Learn = () => {
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <span className="text-3xl">{displayData.icon || '📚'}</span>
+            <span className="text-3xl">{data.icon || '📚'}</span>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">{displayData.name}</h1>
-              <p className="text-gray-500">{finalSubject || displayData.subject} • {displayData.totalQuestions || 100} Questions</p>
+              <h1 className="text-3xl font-bold text-gray-900">{data.name}</h1>
+              <p className="text-gray-500">{subjectFromQuery || data.subject} • {data.totalQuestions || 0} Questions</p>
             </div>
           </div>
-          <p className="text-gray-600 mt-2">{displayData.description}</p>
+          <p className="text-gray-600 mt-2">{data.description}</p>
           <div className="flex items-center gap-4 mt-3">
-            <Badge variant="info">{displayData.completedQuestions || 0}/{displayData.totalQuestions || 100} Completed</Badge>
-            <span className="text-sm text-gray-500">{Math.round(displayData.progress || 0)}% Progress</span>
+            <Badge variant="info">{data.completedQuestions || 0}/{data.totalQuestions || 0} Completed</Badge>
+            <span className="text-sm text-gray-500">{Math.round(data.progress || 0)}% Progress</span>
           </div>
           <div className="mt-2 w-full md:w-96">
-            <ProgressBar progress={displayData.progress || 0} showLabel label="Topic Progress" />
+            <ProgressBar progress={data.progress || 0} showLabel label="Topic Progress" />
           </div>
         </div>
       </div>
@@ -159,7 +101,10 @@ const Learn = () => {
           {subtopics.map((subtopic) => (
             <button
               key={subtopic.id}
-              onClick={() => navigate(`/learn/${displayData.id || displayData.name}/${subtopic.id}?subject=${encodeURIComponent(finalSubject)}`)}
+              onClick={() => {
+                const subject = subjectFromQuery || data.subject || '';
+                navigate(`/learn/${encodeURIComponent(data.name)}/${subtopic.id}?subject=${encodeURIComponent(subject)}`);
+              }}
               className={`
                 px-4 py-2 rounded-xl text-sm font-medium transition-all
                 ${selectedSubtopic?.id === subtopic.id 
@@ -177,24 +122,24 @@ const Learn = () => {
       <Card className="bg-gray-900 text-white overflow-hidden shadow-xl">
         <div className="aspect-video w-full">
           <iframe
-            src={displayData.videoUrl || 'https://www.youtube.com/embed/dQw4w9WgXcQ'}
-            title={displayData.name}
+            src={data.videoUrl || 'https://www.youtube.com/embed/dQw4w9WgXcQ'}
+            title={data.name}
             className="w-full h-full"
             allowFullScreen
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           />
         </div>
         <div className="p-4">
-          <h3 className="text-xl font-semibold">{selectedSubtopic?.name || displayData.name}</h3>
-          <p className="text-gray-400">{selectedSubtopic?.description || displayData.description}</p>
+          <h3 className="text-xl font-semibold">{selectedSubtopic?.name || data.name}</h3>
+          <p className="text-gray-400">{selectedSubtopic?.description || data.description}</p>
           <div className="flex items-center gap-4 mt-2 text-sm text-gray-400">
-            <span>📝 {selectedSubtopic?.questionCount || displayData.totalQuestions || 0} questions</span>
+            <span>📝 {selectedSubtopic?.totalQuestions || data.totalQuestions || 0} questions</span>
             <span>⏱️ 15 min</span>
           </div>
         </div>
       </Card>
 
-      {/* Tabs: Formulas, Concepts, Shortcuts */}
+      {/* Tabs */}
       <div className="flex gap-2 border-b border-gray-200">
         {['formulas', 'concepts', 'shortcuts'].map((tab) => (
           <button
@@ -218,10 +163,7 @@ const Learn = () => {
           <Card>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">📐 Formula Sheet</h3>
             <div className="space-y-3">
-              {(displayData.formulas || [
-                { id: 1, title: "Formula 1" },
-                { id: 2, title: "Formula 2" }
-              ]).map((formula) => (
+              {(data.formulas || []).map((formula) => (
                 <div key={formula.id} className="p-3 bg-gray-50 rounded-xl border border-gray-100">
                   <p className="font-mono text-sm text-gray-700">{formula.title}</p>
                 </div>
@@ -234,7 +176,7 @@ const Learn = () => {
           <div>
             <SectionTitle title="Key Concepts" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {(selectedSubtopic?.concepts || displayData.concepts || subtopics).map((concept) => (
+              {(selectedSubtopic?.concepts || data.concepts || subtopics).map((concept) => (
                 <Card key={concept.id} hover className="border border-gray-200">
                   <h4 className="font-semibold text-gray-900">{concept.title || concept.name}</h4>
                   <p className="text-sm text-gray-500 mt-1">{concept.description}</p>
@@ -252,10 +194,7 @@ const Learn = () => {
           <Card>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">⚡ Shortcut Tricks</h3>
             <div className="space-y-4">
-              {(displayData.shortcuts || [
-                { id: 1, title: "Shortcut 1: Example shortcut" },
-                { id: 2, title: "Shortcut 2: Example shortcut" }
-              ]).map((shortcut) => (
+              {(data.shortcuts || []).map((shortcut) => (
                 <div key={shortcut.id} className="p-4 bg-yellow-50 rounded-xl border border-yellow-200">
                   <p className="text-gray-800">{shortcut.title}</p>
                 </div>
@@ -265,12 +204,13 @@ const Learn = () => {
         )}
       </div>
 
-      {/* Start Practice Button - Bottom */}
+      {/* Start Practice Button */}
       <div className="flex justify-center pt-6 pb-4">
         <Button 
           onClick={handleStartPractice}
-          className="px-12 py-4 text-lg rounded-2xl shadow-lg hover:shadow-xl"
+          className="px-12 py-4 text-lg rounded-2xl shadow-lg hover:shadow-xl cursor-pointer"
           size="lg"
+          type="button"
         >
           🚀 Start Practice
         </Button>

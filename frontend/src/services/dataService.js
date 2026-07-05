@@ -1,11 +1,9 @@
 import { questionApi } from './api';
-import { dashboardData } from '../data/dummyData';
 
 class DataService {
   constructor() {
-    this.questions = [];
     this.isLoaded = false;
-    this.subjects = {};
+    this.subjects = [];
   }
 
   async loadAllData() {
@@ -14,25 +12,22 @@ class DataService {
     try {
       console.log('📊 Loading data from backend API...');
       
+      // Fetch subjects
       const subjectsResponse = await questionApi.getSubjects();
-      console.log('📊 Subjects API response:', subjectsResponse.data);
+      console.log('📊 Subjects response:', subjectsResponse.data);
       
-      let subjectsData = [];
+      let subjectsList = [];
       if (Array.isArray(subjectsResponse.data)) {
-        subjectsData = subjectsResponse.data;
+        subjectsList = subjectsResponse.data;
       } else if (typeof subjectsResponse.data === 'object') {
-        subjectsData = Object.values(subjectsResponse.data);
+        subjectsList = Object.values(subjectsResponse.data);
       }
       
-      if (subjectsData.length === 0) {
-        console.warn('⚠️ No subjects found, using fallback');
-        return this.getFallbackData();
-      }
+      // Process each subject with its own topics
+      const processedSubjects = [];
       
-      this.subjects = {};
-      
-      for (const subject of subjectsData) {
-        const subjectName = subject.name || 'Unknown';
+      for (const subject of subjectsList) {
+        const subjectName = subject.name;
         console.log(`📊 Processing subject: ${subjectName}`);
         
         let topicsList = [];
@@ -46,68 +41,49 @@ class DataService {
             topicsList = topicsResponse.data;
           }
         } catch (error) {
-          console.error(`Error fetching topics for ${subjectName}:`, error);
+          console.warn(`⚠️ Could not load topics for ${subjectName}:`, error);
         }
         
-        this.subjects[subjectName] = {
-          id: Object.keys(this.subjects).length + 1,
+        processedSubjects.push({
+          id: processedSubjects.length + 1,
           name: subjectName,
           icon: subject.icon || this.getSubjectIcon(subjectName),
           description: subject.description || this.getSubjectDescription(subjectName),
           color: subject.color || '#7c3aed',
           totalQuestions: subject.total_questions || subject.totalQuestions || 0,
-          topics_count: topicsList.length,
-          progress: 0,
-          topics: {}
-        };
-        
-        for (const topic of topicsList) {
-          const topicName = topic.name || 'General';
-          this.subjects[subjectName].topics[topicName] = {
-            id: Object.keys(this.subjects[subjectName].topics).length + 1,
-            name: topicName,
-            totalQuestions: topic.total_questions || topic.totalQuestions || 0,
-            progress: 0,
-            description: topic.description || `Practice ${topicName} questions`,
-            icon: topic.icon || '📚',
-            subtopics: {}
-          };
-          
-          const subtopics = topic.subtopics || [];
-          for (const subtopic of subtopics) {
-            const subtopicName = subtopic.name || 'General';
-            this.subjects[subjectName].topics[topicName].subtopics[subtopicName] = {
-              id: Object.keys(this.subjects[subjectName].topics[topicName].subtopics).length + 1,
-              name: subtopicName,
-              totalQuestions: subtopic.total_questions || subtopic.totalQuestions || 0,
-              progress: 0,
-              difficulty: subtopic.difficulty || 'Medium',
-              questions: []
-            };
-          }
-        }
+          topics: topicsList.map((t, idx) => ({
+            id: idx + 1,
+            name: t.name || 'General',
+            totalQuestions: t.total_questions || t.totalQuestions || 0,
+            subtopics: (t.subtopics || []).map((st, stIdx) => ({
+              id: stIdx + 1,
+              name: st.name || 'General',
+              totalQuestions: st.total_questions || st.totalQuestions || 0,
+              difficulty: st.difficulty || 'Medium'
+            }))
+          }))
+        });
       }
       
-      console.log('📊 Subjects built:', Object.keys(this.subjects));
+      this.subjects = processedSubjects;
       this.isLoaded = true;
+      console.log('✅ Data loaded successfully');
       return this.getStructuredData();
       
     } catch (error) {
       console.error('❌ Error loading data:', error);
+      // Return fallback subjects
       return this.getFallbackData();
     }
   }
 
   getStructuredData() {
-    const subjects = Object.values(this.subjects).map(s => ({
-      ...s,
-      topics: Object.values(s.topics).map(t => ({
-        ...t,
-        subtopics: Object.values(t.subtopics)
+    return {
+      subjects: this.subjects.map(s => ({
+        ...s,
+        topics: s.topics || []
       }))
-    }));
-    
-    return { subjects, questions: [] };
+    };
   }
 
   getSubjectIcon(subject) {
@@ -121,23 +97,22 @@ class DataService {
 
   getSubjectDescription(subject) {
     const descriptions = {
-      'Arithmetic': 'Master quantitative aptitude with comprehensive topic coverage',
-      'Verbal Ability': 'Improve your language skills for placement exams',
-      'Logical Reasoning': 'Enhance your logical and analytical thinking abilities'
+      'Arithmetic': 'Master quantitative aptitude',
+      'Verbal Ability': 'Improve your language skills',
+      'Logical Reasoning': 'Enhance your logical thinking'
     };
-    return descriptions[subject] || `Practice ${subject} questions`;
+    return descriptions[subject] || `Practice ${subject}`;
   }
 
   getFallbackData() {
-    console.warn('⚠️ Using fallback dummy data');
-    const fallbackSubjects = (dashboardData.subjects || []).map(s => ({
-      ...s,
-      topics: (s.topics || []).map(t => ({
-        ...t,
-        subtopics: t.subtopics || []
-      }))
-    }));
-    return { subjects: fallbackSubjects, questions: [] };
+    console.warn('⚠️ Using fallback data');
+    return {
+      subjects: [
+        { id: 1, name: 'Arithmetic', icon: 'fa-calculator', topics: [], totalQuestions: 0 },
+        { id: 2, name: 'Logical Reasoning', icon: 'fa-brain', topics: [], totalQuestions: 0 },
+        { id: 3, name: 'Verbal Ability', icon: 'fa-comment-dots', topics: [], totalQuestions: 0 }
+      ]
+    };
   }
 }
 

@@ -16,20 +16,6 @@ from app.models.user import User
 router = APIRouter(prefix="/questions", tags=["Questions"])
 
 @router.get(
-    "/load-data",
-    summary="Load CSV data into database",
-    description="Load all questions from CSV files into the database"
-)
-async def load_csv_data(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """Load CSV data into the database (Admin only)"""
-    # TODO: Add admin role check
-    result = QuestionService.load_csv_data_to_db(db)
-    return {"success": True, "message": "Data loaded successfully", **result}
-
-@router.get(
     "/subjects",
     summary="Get all subjects",
     description="Get summary of all subjects with question counts",
@@ -61,30 +47,42 @@ async def get_topics(
 @router.get(
     "/practice",
     summary="Get practice questions",
-    description="Get practice questions with filtering"
+    description="Get practice questions with filtering by subject, topic, and subtopic"
 )
 async def get_practice_questions(
     subject: str = Query(..., description="Subject name"),
     topic: str = Query(..., description="Topic name"),
     subtopic: Optional[str] = Query(None, description="Subtopic name"),
     difficulty: Optional[str] = Query(None, description="Difficulty level"),
-    limit: int = Query(10, ge=1, le=50, description="Number of questions"),
+    limit: int = Query(50, ge=1, le=100, description="Number of questions"),
     db: Session = Depends(get_db)
 ):
-    """Get practice questions for a specific topic/subtopic"""
-    questions = QuestionService.get_practice_questions(
-        db=db,
-        subject=subject,
-        topic=topic,
-        subtopic=subtopic,
-        difficulty=difficulty,
-        limit=limit
-    )
+    """
+    Get practice questions for a specific subject, topic, and optionally subtopic.
     
-    return {
-        "total": len(questions),
-        "questions": [q.to_dict() for q in questions]
-    }
+    This is the main endpoint for fetching practice questions.
+    It filters by subject, topic, and subtopic to ensure the correct questions are returned.
+    """
+    try:
+        questions = QuestionService.get_practice_questions(
+            db=db,
+            subject=subject,
+            topic=topic,
+            subtopic=subtopic,
+            difficulty=difficulty,
+            limit=limit
+        )
+        
+        return {
+            "total": len(questions),
+            "subject": subject,
+            "topic": topic,
+            "subtopic": subtopic,
+            "questions": [q.to_dict() for q in questions]
+        }
+    except Exception as e:
+        print(f"❌ Error getting practice questions: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get(
     "/{question_id}",

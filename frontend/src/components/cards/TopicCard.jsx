@@ -9,14 +9,28 @@ import Button from '../ui/Button';
 const TopicCard = ({ topic, subjectId, subjectName }) => {
   const navigate = useNavigate();
 
-  const handleStart = () => {
-    // Pass both topic ID and subject name
-    const topicId = topic.id || topic.name;
-    navigate(`/learn/${topicId}?subject=${encodeURIComponent(subjectName || '')}`);
+  const handleStart = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // CRITICAL FIX: Use topic name instead of ID
+    // This ensures each subject uses its own topics
+    const topicName = topic.name;
+    const encodedSubject = encodeURIComponent(subjectName || '');
+    const encodedTopic = encodeURIComponent(topicName);
+    
+    console.log('🎯 TopicCard clicked:', { 
+      topicName, 
+      subjectName, 
+      topicId: topic.id 
+    });
+    
+    // Navigate using topic NAME instead of ID
+    navigate(`/learn/${encodedTopic}?subject=${encodedSubject}`);
   };
 
   return (
-    <Card hover className="flex flex-col h-full border border-gray-200">
+    <Card hover className="flex flex-col h-full border border-gray-200 cursor-pointer">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
           <span className="text-3xl">{topic.icon || '📚'}</span>
@@ -44,6 +58,7 @@ const TopicCard = ({ topic, subjectId, subjectName }) => {
           <Button 
             size="sm" 
             onClick={handleStart}
+            className="cursor-pointer"
           >
             {topic.progress > 0 ? 'Continue' : 'Start'}
           </Button>
