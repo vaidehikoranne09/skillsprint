@@ -35,23 +35,13 @@ app.include_router(user.router)
 app.include_router(questions.router)
 
 # ============ SERVE FRONTEND ============
-# Register MIME types for JavaScript files
+# Register MIME types
 mimetypes.add_type('application/javascript', '.js')
 mimetypes.add_type('application/javascript', '.jsx')
 mimetypes.add_type('text/css', '.css')
 mimetypes.add_type('text/html', '.html')
 mimetypes.add_type('application/json', '.json')
 mimetypes.add_type('image/svg+xml', '.svg')
-mimetypes.add_type('image/png', '.png')
-mimetypes.add_type('image/jpeg', '.jpg')
-mimetypes.add_type('image/jpeg', '.jpeg')
-mimetypes.add_type('image/gif', '.gif')
-mimetypes.add_type('image/webp', '.webp')
-mimetypes.add_type('image/x-icon', '.ico')
-mimetypes.add_type('font/woff', '.woff')
-mimetypes.add_type('font/woff2', '.woff2')
-mimetypes.add_type('font/ttf', '.ttf')
-mimetypes.add_type('application/vnd.ms-fontobject', '.eot')
 
 # Check if frontend dist exists
 frontend_paths = [
@@ -73,59 +63,39 @@ print(f"🔍 Frontend directory: {FRONTEND_DIR}")
 if FRONTEND_DIR:
     print(f"✅ Serving frontend from: {FRONTEND_DIR}")
     
-    # List files for debugging
-    try:
-        files = os.listdir(FRONTEND_DIR)
-        print(f"📁 Files: {files}")
-    except:
-        pass
+    # IMPORTANT: Mount static files FIRST
+    # This ensures static files (JS, CSS, etc.) are served correctly
+    app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIR, "assets")), name="assets")
     
-    # Mount static files with correct MIME types
-    @app.get("/{path:path}")
-    async def serve_frontend_files(path: str):
-        # Skip API routes
-        if path.startswith("auth") or path.startswith("questions") or path.startswith("users"):
-            return {"error": "API route"}
-        
-        # If path is empty, serve index.html
-        if not path or path == "":
-            file_path = os.path.join(FRONTEND_DIR, "index.html")
-            if os.path.exists(file_path):
-                return FileResponse(file_path, media_type='text/html')
-        
-        file_path = os.path.join(FRONTEND_DIR, path)
-        
-        # If file exists, serve it with correct MIME type
-        if os.path.exists(file_path) and os.path.isfile(file_path):
-            # Use mimetypes to get the correct MIME type
-            mime_type, _ = mimetypes.guess_type(file_path)
-            if not mime_type:
-                # Default to application/javascript for .js files
-                if file_path.endswith('.js'):
-                    mime_type = 'application/javascript'
-                elif file_path.endswith('.css'):
-                    mime_type = 'text/css'
-                elif file_path.endswith('.html'):
-                    mime_type = 'text/html'
-                else:
-                    mime_type = 'application/octet-stream'
-            
-            return FileResponse(file_path, media_type=mime_type)
-        
-        # For client-side routing, return index.html
-        index_path = os.path.join(FRONTEND_DIR, "index.html")
-        if os.path.exists(index_path):
-            return FileResponse(index_path, media_type='text/html')
-        
-        return {"error": "File not found"}
-    
-    # Root route
+    # Root route - serve index.html
     @app.get("/")
     async def serve_root():
         index_path = os.path.join(FRONTEND_DIR, "index.html")
         if os.path.exists(index_path):
             return FileResponse(index_path, media_type='text/html')
         return {"error": "index.html not found"}
+    
+    # Catch-all route for client-side routing
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        # Skip API routes
+        if full_path.startswith("auth") or full_path.startswith("questions") or full_path.startswith("users"):
+            return {"error": "API route"}
+        
+        # Check if it's a file that exists
+        file_path = os.path.join(FRONTEND_DIR, full_path)
+        if os.path.exists(file_path) and os.path.isfile(file_path):
+            mime_type, _ = mimetypes.guess_type(file_path)
+            if not mime_type:
+                mime_type = 'application/octet-stream'
+            return FileResponse(file_path, media_type=mime_type)
+        
+        # For all other routes, return index.html (for client-side routing)
+        index_path = os.path.join(FRONTEND_DIR, "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path, media_type='text/html')
+        
+        return {"error": "File not found"}
 
 else:
     print("⚠️ Frontend not found!")
