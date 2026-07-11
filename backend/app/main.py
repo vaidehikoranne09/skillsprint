@@ -1,9 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
-import mimetypes
 
 from app.config import settings
 from app.database import init_database
@@ -35,15 +33,11 @@ app.include_router(user.router)
 app.include_router(questions.router)
 
 # ============ SERVE FRONTEND ============
-# Register MIME types
-mimetypes.add_type('application/javascript', '.js')
-mimetypes.add_type('text/css', '.css')
-mimetypes.add_type('text/html', '.html')
-mimetypes.add_type('application/json', '.json')
-mimetypes.add_type('image/svg+xml', '.svg')
+# Define the frontend directory
+FRONTEND_DIR = None
 
-# Check if frontend dist exists
-frontend_paths = [
+# Check multiple possible paths
+possible_paths = [
     "/app/frontend/dist",
     "/app/frontend",
     "frontend/dist",
@@ -51,8 +45,7 @@ frontend_paths = [
     "../frontend/dist",
 ]
 
-FRONTEND_DIR = None
-for path in frontend_paths:
+for path in possible_paths:
     if os.path.exists(path) and os.path.isdir(path):
         FRONTEND_DIR = path
         break
@@ -62,47 +55,73 @@ print(f"🔍 Frontend directory: {FRONTEND_DIR}")
 if FRONTEND_DIR:
     print(f"✅ Serving frontend from: {FRONTEND_DIR}")
     
-    # Check for assets directory - if it exists, mount it
-    assets_dir = os.path.join(FRONTEND_DIR, "assets")
-    if os.path.exists(assets_dir) and os.path.isdir(assets_dir):
-        print(f"📁 Mounting assets from: {assets_dir}")
-        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+    # ============================================
+    # IMPORTANT: Define a custom route for JS files
+    # ============================================
+    @app.get("/{path:path}")
+    async def serve_frontend(path: str):
+        # Skip API routes
+        if path.startswith("auth") or path.startswith("questions") or path.startswith("users"):
+            return {"error": "API route"}
+        
+        # Handle root path
+        if not path:
+            return FileResponse(os.path.join(FRONTEND_DIR, "index.html"), media_type="text/html")
+        
+        # Build file path
+        file_path = os.path.join(FRONTEND_DIR, path)
+        
+        # If file exists, serve it with correct MIME type
+        if os.path.exists(file_path) and os.path.isfile(file_path):
+            # Determine MIME type based on extension
+            ext = os.path.splitext(file_path)[1].lower()
+            
+            # Map extensions to MIME types
+            mime_types = {
+                '.js': 'application/javascript',
+                '.mjs': 'application/javascript',
+                '.jsx': 'application/javascript',
+                '.css': 'text/css',
+                '.html': 'text/html',
+                '.htm': 'text/html',
+                '.json': 'application/json',
+                '.png': 'image/png',
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.gif': 'image/gif',
+                '.svg': 'image/svg+xml',
+                '.ico': 'image/x-icon',
+                '.woff': 'font/woff',
+                '.woff2': 'font/woff2',
+                '.ttf': 'font/ttf',
+                '.eot': 'application/vnd.ms-fontobject',
+                '.txt': 'text/plain',
+                '.xml': 'application/xml',
+                '.pdf': 'application/pdf',
+            }
+            
+            media_type = mime_types.get(ext, 'application/octet-stream')
+            
+            # Special handling for JavaScript files
+            if ext in ['.js', '.mjs', '.jsx']:
+                media_type = 'application/javascript'
+            
+            return FileResponse(file_path, media_type=media_type)
+        
+        # For client-side routing, return index.html
+        index_path = os.path.join(FRONTEND_DIR, "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path, media_type="text/html")
+        
+        return {"error": "File not found"}
     
-    # Check for static directory
-    static_dir = os.path.join(FRONTEND_DIR, "static")
-    if os.path.exists(static_dir) and os.path.isdir(static_dir):
-        print(f"📁 Mounting static from: {static_dir}")
-        app.mount("/static", StaticFiles(directory=static_dir), name="static")
-    
-    # Root route - serve index.html
+    # Root route
     @app.get("/")
     async def serve_root():
         index_path = os.path.join(FRONTEND_DIR, "index.html")
         if os.path.exists(index_path):
-            return FileResponse(index_path, media_type='text/html')
+            return FileResponse(index_path, media_type="text/html")
         return {"error": "index.html not found"}
-    
-    # Catch-all route for client-side routing
-    @app.get("/{full_path:path}")
-    async def serve_frontend(full_path: str):
-        # Skip API routes
-        if full_path.startswith("auth") or full_path.startswith("questions") or full_path.startswith("users"):
-            return {"error": "API route"}
-        
-        # Check if it's a file that exists
-        file_path = os.path.join(FRONTEND_DIR, full_path)
-        if os.path.exists(file_path) and os.path.isfile(file_path):
-            mime_type, _ = mimetypes.guess_type(file_path)
-            if not mime_type:
-                mime_type = 'application/octet-stream'
-            return FileResponse(file_path, media_type=mime_type)
-        
-        # For all other routes, return index.html (for client-side routing)
-        index_path = os.path.join(FRONTEND_DIR, "index.html")
-        if os.path.exists(index_path):
-            return FileResponse(index_path, media_type='text/html')
-        
-        return {"error": "File not found"}
 
 else:
     print("⚠️ Frontend not found!")
@@ -113,8 +132,7 @@ else:
             "message": "Welcome to SkillsPrint API",
             "version": settings.APP_VERSION,
             "docs": "/docs",
-            "status": "healthy",
-            "frontend_not_found": True
+            "status": "healthy"
         }
 
 @app.get("/health", tags=["Health"])
