@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
+import mimetypes
 
 from app.config import settings
 from app.database import init_database
@@ -34,6 +35,24 @@ app.include_router(user.router)
 app.include_router(questions.router)
 
 # ============ SERVE FRONTEND ============
+# Register MIME types for JavaScript files
+mimetypes.add_type('application/javascript', '.js')
+mimetypes.add_type('application/javascript', '.jsx')
+mimetypes.add_type('text/css', '.css')
+mimetypes.add_type('text/html', '.html')
+mimetypes.add_type('application/json', '.json')
+mimetypes.add_type('image/svg+xml', '.svg')
+mimetypes.add_type('image/png', '.png')
+mimetypes.add_type('image/jpeg', '.jpg')
+mimetypes.add_type('image/jpeg', '.jpeg')
+mimetypes.add_type('image/gif', '.gif')
+mimetypes.add_type('image/webp', '.webp')
+mimetypes.add_type('image/x-icon', '.ico')
+mimetypes.add_type('font/woff', '.woff')
+mimetypes.add_type('font/woff2', '.woff2')
+mimetypes.add_type('font/ttf', '.ttf')
+mimetypes.add_type('application/vnd.ms-fontobject', '.eot')
+
 # Check if frontend dist exists
 frontend_paths = [
     "/app/frontend/dist",
@@ -61,7 +80,7 @@ if FRONTEND_DIR:
     except:
         pass
     
-    # Serve static files with correct MIME types
+    # Mount static files with correct MIME types
     @app.get("/{path:path}")
     async def serve_frontend_files(path: str):
         # Skip API routes
@@ -78,22 +97,20 @@ if FRONTEND_DIR:
         
         # If file exists, serve it with correct MIME type
         if os.path.exists(file_path) and os.path.isfile(file_path):
-            # Determine MIME type based on extension
-            extension = os.path.splitext(file_path)[1].lower()
-            media_type = None
+            # Use mimetypes to get the correct MIME type
+            mime_type, _ = mimetypes.guess_type(file_path)
+            if not mime_type:
+                # Default to application/javascript for .js files
+                if file_path.endswith('.js'):
+                    mime_type = 'application/javascript'
+                elif file_path.endswith('.css'):
+                    mime_type = 'text/css'
+                elif file_path.endswith('.html'):
+                    mime_type = 'text/html'
+                else:
+                    mime_type = 'application/octet-stream'
             
-            if extension == '.js':
-                media_type = 'application/javascript'
-            elif extension == '.css':
-                media_type = 'text/css'
-            elif extension == '.html':
-                media_type = 'text/html'
-            elif extension == '.json':
-                media_type = 'application/json'
-            elif extension in ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico']:
-                media_type = f'image/{extension[1:]}'
-            
-            return FileResponse(file_path, media_type=media_type)
+            return FileResponse(file_path, media_type=mime_type)
         
         # For client-side routing, return index.html
         index_path = os.path.join(FRONTEND_DIR, "index.html")
