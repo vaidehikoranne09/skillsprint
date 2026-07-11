@@ -37,7 +37,6 @@ app.include_router(questions.router)
 # ============ SERVE FRONTEND ============
 # Register MIME types
 mimetypes.add_type('application/javascript', '.js')
-mimetypes.add_type('application/javascript', '.jsx')
 mimetypes.add_type('text/css', '.css')
 mimetypes.add_type('text/html', '.html')
 mimetypes.add_type('application/json', '.json')
@@ -63,9 +62,17 @@ print(f"🔍 Frontend directory: {FRONTEND_DIR}")
 if FRONTEND_DIR:
     print(f"✅ Serving frontend from: {FRONTEND_DIR}")
     
-    # IMPORTANT: Mount static files FIRST
-    # This ensures static files (JS, CSS, etc.) are served correctly
-    app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIR, "assets")), name="assets")
+    # Check for assets directory - if it exists, mount it
+    assets_dir = os.path.join(FRONTEND_DIR, "assets")
+    if os.path.exists(assets_dir) and os.path.isdir(assets_dir):
+        print(f"📁 Mounting assets from: {assets_dir}")
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+    
+    # Check for static directory
+    static_dir = os.path.join(FRONTEND_DIR, "static")
+    if os.path.exists(static_dir) and os.path.isdir(static_dir):
+        print(f"📁 Mounting static from: {static_dir}")
+        app.mount("/static", StaticFiles(directory=static_dir), name="static")
     
     # Root route - serve index.html
     @app.get("/")
