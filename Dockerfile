@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Copy backend and frontend files
 COPY backend/ /app/backend/
-COPY frontend/ /app/frontend/
+COPY frontend/dist /app/frontend/dist/
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
