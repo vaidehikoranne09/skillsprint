@@ -34,13 +34,13 @@ app.include_router(user.router)
 app.include_router(questions.router)
 
 # ============ SERVE FRONTEND ============
-# Try multiple possible frontend paths
+# Check if frontend dist exists
 frontend_paths = [
-    "/app/frontend/dist",           # Docker path
-    "/app/frontend",                # Docker path (without dist)
-    "../frontend/dist",             # Local development
-    "frontend/dist",                # Local development
-    "/app/backend/../frontend/dist", # Alternative Docker path
+    "/app/frontend/dist",
+    "/app/frontend",
+    "frontend/dist",
+    "frontend",
+    "../frontend/dist",
 ]
 
 FRONTEND_DIR = None
@@ -49,38 +49,67 @@ for path in frontend_paths:
         FRONTEND_DIR = path
         break
 
+print(f"🔍 Frontend directory: {FRONTEND_DIR}")
+
 if FRONTEND_DIR:
     print(f"✅ Serving frontend from: {FRONTEND_DIR}")
     
-    # Check if there's an assets folder
-    assets_dir = os.path.join(FRONTEND_DIR, "assets")
-    if os.path.exists(assets_dir):
-        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+    # List files for debugging
+    try:
+        files = os.listdir(FRONTEND_DIR)
+        print(f"📁 Files: {files}")
+    except:
+        pass
     
-    # Also mount static if it exists
-    static_dir = os.path.join(FRONTEND_DIR, "static")
-    if os.path.exists(static_dir):
-        app.mount("/static", StaticFiles(directory=static_dir), name="static")
-    
-    @app.get("/")
-    async def serve_root():
-        return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
-    
+    # Serve static files with correct MIME types
     @app.get("/{path:path}")
-    async def serve_frontend(path: str):
+    async def serve_frontend_files(path: str):
         # Skip API routes
         if path.startswith("auth") or path.startswith("questions") or path.startswith("users"):
-            # Let the API routers handle these
-            pass
+            return {"error": "API route"}
         
-        # Check if the file exists
+        # If path is empty, serve index.html
+        if not path or path == "":
+            file_path = os.path.join(FRONTEND_DIR, "index.html")
+            if os.path.exists(file_path):
+                return FileResponse(file_path)
+        
         file_path = os.path.join(FRONTEND_DIR, path)
-        if os.path.exists(file_path) and os.path.isfile(file_path):
-            return FileResponse(file_path)
         
-        # If not found, return index.html (for client-side routing)
-        return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+        # If file exists, serve it with correct MIME type
+        if os.path.exists(file_path) and os.path.isfile(file_path):
+            # Determine MIME type based on extension
+            extension = os.path.splitext(file_path)[1].lower()
+            media_type = None
+            
+            if extension == '.js':
+                media_type = 'application/javascript'
+            elif extension == '.css':
+                media_type = 'text/css'
+            elif extension == '.html':
+                media_type = 'text/html'
+            elif extension == '.json':
+                media_type = 'application/json'
+            elif extension in ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico']:
+                media_type = f'image/{extension[1:]}'
+            
+            return FileResponse(file_path, media_type=media_type)
+        
+        # For client-side routing, return index.html
+        index_path = os.path.join(FRONTEND_DIR, "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path, media_type='text/html')
+        
+        return {"error": "File not found"}
     
+    # Root route
+    @app.get("/")
+    async def serve_root():
+        index_path = os.path.join(FRONTEND_DIR, "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path, media_type='text/html')
+        return {"error": "index.html not found"}
+
 else:
     print("⚠️ Frontend not found!")
     
@@ -90,7 +119,8 @@ else:
             "message": "Welcome to SkillsPrint API",
             "version": settings.APP_VERSION,
             "docs": "/docs",
-            "status": "healthy"
+            "status": "healthy",
+            "frontend_not_found": True
         }
 
 @app.get("/health", tags=["Health"])
