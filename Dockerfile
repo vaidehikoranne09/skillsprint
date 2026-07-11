@@ -28,8 +28,7 @@ ENV ALGORITHM=HS256
 ENV ACCESS_TOKEN_EXPIRE_MINUTES=60
 ENV DEBUG=False
 ENV ENVIRONMENT=production
-ENV ALLOWED_ORIGINS=https://skillsprint-ijwh.onrender.com
-
+ENV ALLOWED_ORIGINS=https://skillsprint-ijwh.onrender.com,http://localhost:3000,https://skillsprint-api-97qw.onrender.com
 # Expose the port
 EXPOSE 10000
 

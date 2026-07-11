@@ -3,7 +3,7 @@ services:
     name: skillsprint-api
     runtime: docker
     plan: free
-
+    repo: https://github.com/shivani07-gh/skillsprint
     dockerfilePath: ./Dockerfile
 
     envVars:
@@ -32,4 +32,4 @@ services:
         value: "False"
 
       - key: ALLOWED_ORIGINS
-        value: https://skillsprint-api.onrender.com
+        value: https://skillsprint-api.onrender.com,https://skillsprint-api-97qw.onrender.com
