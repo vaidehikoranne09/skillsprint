@@ -72,7 +72,7 @@ if FRONTEND_DIR:
         if not path or path == "":
             file_path = os.path.join(FRONTEND_DIR, "index.html")
             if os.path.exists(file_path):
-                return FileResponse(file_path)
+                return FileResponse(file_path, media_type='text/html')
         
         file_path = os.path.join(FRONTEND_DIR, path)
         
