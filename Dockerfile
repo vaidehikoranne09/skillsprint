@@ -6,7 +6,7 @@ WORKDIR /app
 COPY backend/ /app/backend/
 
 # Copy frontend dist - CORRECT (no leading slash)
-COPY frontend/dist/ /app/frontend/dist/
+COPY frontend/ /app/frontend/
 
 # Install dependencies
 WORKDIR /app/backend
