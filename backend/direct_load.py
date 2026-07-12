@@ -24,8 +24,12 @@ def load_data():
 
     # Clear existing
     print("🗑️ Clearing existing questions...")
-    db.query(Question).delete()
-    db.commit()
+    count = db.query(Question).count()
+
+    if count > 0:
+        print(f"Database already contains {count} questions.")
+        db.close()
+        return
 
     # CSV files
     csv_files = [
